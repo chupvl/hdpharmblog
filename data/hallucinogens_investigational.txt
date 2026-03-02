@@ -1,0 +1,59 @@
+Wikipedia Page	Name	SMILES
+https://en.wikipedia.org/wiki/(R)-MDMA	(R)-MDMA	C[C@H](CC1=CC2=C(C=C1)OCO2)N(C)C
+https://en.wikipedia.org/wiki/2-Bromo-LSD	2-Bromo-LSD	CCN(CC)C(=O)[C@H]1CN(C)[C@H]2C=C3C(=C[C@H]2[C@H]1CC4=CNC5=CC=CC(Br)=C45)C=CC3=O
+https://en.wikipedia.org/wiki/2-Fluorodeschloroketamine	2-Fluorodeschloroketamine	CN(C)[C@H]1CCCCC1(C2=CC=CC(F)=C2)=O
+https://en.wikipedia.org/wiki/3-Methylmethcathinone	3-Methylmethcathinone	CC1=CC(=CC=C1)C(C(=O)C)N(C)C
+https://en.wikipedia.org/wiki/5-MeO-AI	5-MeO-AI	COC1=CC2=C(CC(C2)N)C=C1
+https://en.wikipedia.org/wiki/5-MeO-MiPT	5-MeO-MiPT	CC(C)N(C)CCC1=CNC2=CC(OC)=CC=C21
+https://en.wikipedia.org/wiki/Arketamine	Arketamine	CN(C)[C@H]1CCCCC1(C2=CC=CC(Cl)=C2)=O
+https://en.wikipedia.org/wiki/ASR-2001	ASR-2001	CCCOC1=C(C=C(C(=C1)CCN)OC)Br
+https://en.wikipedia.org/wiki/ASR-3001	ASR-3001	CC(C)N(CCC1=CNC2=C1C=C(C=C2)OC)CC=C
+https://en.wikipedia.org/wiki/Baeocystin	Baeocystin	CNCC1=CC2=C(C=C1O)NC3=C2C(=O)N(C)C(=O)C3
+https://en.wikipedia.org/wiki/Blixeprodil	Blixeprodil	CCOC1=C(C=CC(=C1)C2=CC(=O)N(CCN2C)CC3=CC=CC=C3)OC
+https://en.wikipedia.org/wiki/BMB-201	BMB-201	
+https://en.wikipedia.org/wiki/BMB-202	BMB-202	
+https://en.wikipedia.org/wiki/BMND07	BMND07	CN(C)CCC1=CNC2=C1C=C(C=C2)OC
+https://en.wikipedia.org/wiki/Bretisilocin	Bretisilocin	CCN(C)CCC1=CNC2=C1C=C(C=C2)F
+https://en.wikipedia.org/wiki/Bufotenin	Bufotenin	CCN(CC)CCC1=CNC2=CC(=C(C=C21)O)OC
+https://en.wikipedia.org/wiki/CYB003	CYB003	CN(C)CCC1=CNC2=C1C(=CC=C2)OP(=O)(O)O
+https://en.wikipedia.org/wiki/CYB004	CYB004	CN(C)CCC1=CNC2=C1C=CC=C2
+https://en.wikipedia.org/wiki/Dimethyltryptamine	Dimethyltryptamine	CN(C)CCC1=CNC2=CC=CC=C21
+https://en.wikipedia.org/wiki/Dimethyltryptamine/harmine	Dimethyltryptamine/harmine	
+https://en.wikipedia.org/wiki/DLX-159	DLX-159	
+https://en.wikipedia.org/wiki/EB-002	EB-002	
+https://en.wikipedia.org/wiki/EB-003	EB-003	
+https://en.wikipedia.org/wiki/Esketamine	Esketamine	CN(C)[C@H]1CCCCC1(C2=CC=CC(Cl)=C2)=O (S‑enantiomer of ketamine)
+https://en.wikipedia.org/wiki/Ibogaine	Ibogaine	COC1=CC2=C(C=C1)N3CCCCC4(C3C2)CC5=CC=CC=C54
+https://en.wikipedia.org/wiki/ITI-1549	ITI-1549	CN1c2cccc3c2N(CC12CC2)[C@H]1CCN(CCc2noc4ccccc24)C[C@@H]31
+https://en.wikipedia.org/wiki/Ketamine	Ketamine	CN(C)C1(CCCCC1=O)C2=CC=CC(Cl)=C2
+https://en.wikipedia.org/wiki/Ketamine/temsirolimus	Ketamine/temsirolimus	
+https://en.wikipedia.org/wiki/Ketanserin	Ketanserin	CCOC1=CC(=CC(=C1)C2=CC(=O)N(CCN2CC3=CC=CC=C3)CC4=CC=CC=C4)OC
+https://en.wikipedia.org/wiki/LPH-48	LPH-48	COc1cc(CC2CC2)c(OC)cc1C[C@@H](C)N
+https://en.wikipedia.org/wiki/LPH-5_(drug)	LPH-5 (drug)	CN[C@@H](C)Cc1cc2c(cc1OC)OCC2
+https://en.wikipedia.org/wiki/Luvesilocin	Luvesilocin	CC(C)N(C(C)C)CCC1=CNC2=C1C(OC(=O)O)=CC=C2
+https://en.wikipedia.org/wiki/Lys-MDA	Lys-MDA	CC(CC1=CC2=C(C=C1)OCO2)NC(=O)[C@@H](N)CCCCN
+https://en.wikipedia.org/wiki/Lys-MDMA	Lys-MDMA	CN(C(C)CC1=CC2=C(C=C1)OCO2)C(=O)[C@@H](N)CCCCN
+https://en.wikipedia.org/wiki/Lysergic_acid_diethylamide	Lysergic acid diethylamide	CCN(CC)C(=O)[C@H]1C=C2C3=CC=CC=C3N(C)[C@@H]2CC4=C1NC5=CC=CC=C45
+https://en.wikipedia.org/wiki/MBDB	MBDB	CC(CC1=CC2=C(C=C1)OCO2)N(CC)C
+https://en.wikipedia.org/wiki/Mebufotenin	Mebufotenin	CCCCN(C)CCC1=CNC2=C1C=C(OC)C=C2
+https://en.wikipedia.org/wiki/Mescaline	Mescaline	COC1=CC(=CC(=C1O)OCCN(CC)CC)OC
+https://en.wikipedia.org/wiki/Methylone	Methylone	COC1=CC(=CC(=C1)C(=O)C(C)N(C)C)OC
+https://en.wikipedia.org/wiki/Midomafetamine	Midomafetamine (racemic MDMA)	CC(CC1=CC2=C(C=C1)OCO2)N(C)C
+https://en.wikipedia.org/wiki/Midomafetamine/citalopram	Midomafetamine/citalopram	
+https://en.wikipedia.org/wiki/MSP-1014	MSP-1014	CN(C)CCC1=CNC2=C1C(=CC=C2)O[P](=Se)(O)O
+https://en.wikipedia.org/wiki/MYCO-006	MYCO-006	
+https://en.wikipedia.org/wiki/MYCO-007	MYCO-007	
+https://en.wikipedia.org/wiki/Norbaeocystin	Norbaeocystin	CNC1=CC2=C(C=C1O)NC3=C2C(=O)N(C)C(=O)C3
+https://en.wikipedia.org/wiki/Noribogaine	Noribogaine	COC1=CC2=C(C=C1O)N3CCCCC4(C3C2)CC5=CC=CC=C54
+https://en.wikipedia.org/wiki/Norpsilocin	Norpsilocin	CNCC1=CC2=C(C=C1O)NC3=C2C(=O)N(C)C(=O)C3
+https://en.wikipedia.org/wiki/OSU-6162	OSU-6162	CCN(CC)CCOC1=CC=C(C=C1)C2=CC(=O)N(CC2)CC3=CC=CC=C3
+https://en.wikipedia.org/wiki/Psilocin	Psilocin	CN1C=C(C2=CC(=C(C=C21)O)OC)CCO
+https://en.wikipedia.org/wiki/Psilocybin	Psilocybin	CN1C=C(C2=CC(=C(C=C21)OP(=O)(O)O)O)CCO
+https://en.wikipedia.org/wiki/SPL028	SPL028	CN(C)C([2H])([2H])C([2H])([2H])c1c[nH]c2ccccc12
+https://en.wikipedia.org/wiki/SPT-348	SPT-348	CN(C)CCC1=CNC2=C1C(O)=CC=C2
+https://en.wikipedia.org/wiki/Tabernanthalog	Tabernanthalog	COC1=CC2=C(C=C1OCC3=CC=CC=C3)N4CCCCC5(C4C2)CC6=CC=CC=C65
+https://en.wikipedia.org/wiki/TACT411	TACT411	
+https://en.wikipedia.org/wiki/TACT908	TACT908	
+https://en.wikipedia.org/wiki/Xenon	Xenon	[Xe]
+https://en.wikipedia.org/wiki/Zalsupindole	Zalsupindole	CCN(CC)CCOC1=CC2=C(C=C1)N3C(=O)C4=CC=CC=C4C3=C(C2)Cl
+https://en.wikipedia.org/wiki/Zolunicant	Zolunicant	CCOC1=CC(=CC(=C1)C2=CC(=O)N(CCN2C)CC3=CC=CC=C3)OC
