@@ -10,6 +10,5 @@
 
 ## Contact
 
-For questions or feedback, contact [chupvl](https://github.com/chupvl)  
-Or connect on [LinkedIn](https://www.linkedin.com/in/chupvl/)  
-I also offer consulting services—feel free to reach out!
+
+Connect on [LinkedIn](https://www.linkedin.com/in/chupvl/) or <chupvl@gmail.com>.
