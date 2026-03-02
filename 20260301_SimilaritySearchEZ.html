@@ -1,0 +1,1915 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>RDKit.js Similarity Search with Progress</title>
+    <script src="https://unpkg.com/@rdkit/rdkit/dist/RDKit_minimal.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        
+        .header {
+            background-color: white;
+            border-bottom: 1px solid #e0e0e0;
+            padding: 0;
+            margin-bottom: 0;
+        }
+        
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px 30px 0;
+        }
+        
+        h1 {
+            font-size: 24px;
+            font-weight: 600;
+            color: #1a1a1a;
+            margin-bottom: 15px;
+        }
+        
+        .tabs {
+            display: flex;
+            gap: 0;
+            border-bottom: none;
+        }
+        
+        .tab {
+            padding: 12px 20px;
+            background: none;
+            border: none;
+            border-bottom: 3px solid transparent;
+            color: #666;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        
+        .tab:hover {
+            color: #2196F3;
+            background-color: #f5f5f5;
+        }
+        
+        .tab.active {
+            color: #2196F3;
+            border-bottom-color: #2196F3;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 30px;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.3s;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* Two-column layout for search tab */
+        .search-layout {
+            display: grid;
+            grid-template-columns: 400px 1fr;
+            gap: 30px;
+            align-items: start;
+        }
+        
+        .search-setup {
+            background: white;
+            border-radius: 8px;
+            padding: 25px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 30px;
+        }
+        
+        .search-results {
+            background: white;
+            border-radius: 8px;
+            padding: 25px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            min-height: 400px;
+        }
+        
+        .results-placeholder {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 400px;
+            color: #999;
+            text-align: center;
+        }
+        
+        .results-placeholder svg {
+            width: 80px;
+            height: 80px;
+            margin-bottom: 20px;
+            opacity: 0.3;
+        }
+        
+        /* Results Summary Section */
+        .results-summary {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 25px;
+            padding: 25px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 8px;
+            color: white;
+        }
+        
+        .summary-stats {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .stat-item {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            align-items: center;
+        }
+        
+        .stat-label {
+            opacity: 0.9;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .stat-value {
+            font-weight: 700;
+            font-size: 48px;
+        }
+        
+        /* Query Section */
+        .query-section {
+            margin-bottom: 25px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #2196F3;
+        }
+        
+        .query-header {
+            font-size: 12px;
+            font-weight: 600;
+            color: #666;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .query-display {
+            background: white;
+            border-radius: 6px;
+            padding: 15px;
+            display: grid;
+            grid-template-columns: 200px 1fr;
+            gap: 15px;
+            align-items: center;
+        }
+        
+        .query-mol-container {
+            width: 200px;
+            height: 150px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #fafafa;
+            border-radius: 6px;
+            border: 1px solid #e0e0e0;
+        }
+        
+        .query-smiles-display {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            color: #666;
+            word-break: break-all;
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            line-height: 1.6;
+            margin-bottom: 15px;
+        }
+        
+        .query-stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            padding: 15px;
+            background: #f0f4ff;
+            border-radius: 6px;
+            border: 1px solid #d0d8f0;
+        }
+        
+        .query-stat-item {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            text-align: center;
+        }
+        
+        .query-stat-label {
+            font-size: 11px;
+            color: #666;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .query-stat-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: #2196F3;
+        }
+        
+        /* Matches Controls */
+        .matches-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f0f0f0;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .matches-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .view-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .view-toggle {
+            display: flex;
+            background: #f0f0f0;
+            border-radius: 6px;
+            padding: 2px;
+        }
+        
+        .view-btn {
+            padding: 6px 12px;
+            background: transparent;
+            border: none;
+            color: #666;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 13px;
+            transition: all 0.2s;
+            width: auto;
+        }
+        
+        .view-btn.active {
+            background: white;
+            color: #2196F3;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            font-weight: 600;
+        }
+        
+        .results-limit-control {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+        }
+        
+        .results-limit {
+            padding: 6px 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            background: white;
+            width: auto;
+            font-size: 13px;
+        }
+        
+        /* Grid View */
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 15px;
+        }
+        
+        .result-card {
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 15px;
+            background: white;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        
+        .result-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            border-color: #2196F3;
+        }
+        
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        
+        .card-rank {
+            background: #2196F3;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .card-similarity {
+            font-size: 18px;
+            font-weight: 700;
+        }
+        
+        .card-similarity.high {
+            color: #4caf50;
+        }
+        
+        .card-similarity.medium {
+            color: #ff9800;
+        }
+        
+        .card-similarity.low {
+            color: #f44336;
+        }
+        
+        .card-mol-viz {
+            background: #fafafa;
+            border-radius: 6px;
+            padding: 10px;
+            margin: 10px 0;
+            min-height: 150px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #e8e8e8;
+        }
+        
+        .card-smiles {
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            color: #666;
+            word-break: break-all;
+            line-height: 1.4;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        
+        .card-name {
+            font-size: 13px;
+            font-weight: 600;
+            color: #333;
+            margin: 8px 0;
+            text-align: center;
+        }
+        
+        /* Table View */
+        .results-table-container {
+            display: none;
+            overflow-x: auto;
+        }
+        
+        .results-table-container.active {
+            display: block;
+        }
+        
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+        }
+        
+        .results-table th {
+            background: #f8f9fa;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 13px;
+            color: #666;
+            border-bottom: 2px solid #e0e0e0;
+            position: sticky;
+            top: 0;
+        }
+        
+        .results-table td {
+            padding: 12px;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 13px;
+        }
+        
+        .results-table tr:hover {
+            background: #f8f9fa;
+        }
+        
+        .table-rank {
+            font-weight: 600;
+            color: #2196F3;
+            width: 50px;
+        }
+        
+        .table-structure {
+            width: 120px;
+        }
+        
+        .table-structure-img {
+            width: 120px;
+            height: 90px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .table-similarity {
+            font-weight: 700;
+            font-size: 16px;
+            width: 100px;
+        }
+        
+        .table-smiles {
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            color: #666;
+            max-width: 400px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        .table-name {
+            font-weight: 500;
+            color: #333;
+            max-width: 200px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        /* Results Footer */
+        .results-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 2px solid #f0f0f0;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .pagination-info {
+            font-size: 13px;
+            color: #666;
+        }
+        
+        .results-actions {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .action-btn {
+            padding: 8px 16px;
+            font-size: 13px;
+            background: white;
+            color: #2196F3;
+            border: 1px solid #2196F3;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            width: auto;
+        }
+        
+        .action-btn:hover:not(:disabled) {
+            background: #2196F3;
+            color: white;
+        }
+        
+        .action-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        @media (max-width: 1200px) {
+            .results-summary {
+                grid-template-columns: 1fr;
+            }
+            
+            .query-display {
+                grid-template-columns: 1fr;
+            }
+            
+            .query-mol-container {
+                margin: 0 auto;
+            }
+            
+            .query-stats {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .results-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .matches-controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .query-stats {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #1a1a1a;
+            border-bottom: 2px solid #f0f0f0;
+            padding-bottom: 10px;
+        }
+        
+        .input-group { 
+            margin-bottom: 20px; 
+        }
+        
+        label { 
+            display: block; 
+            margin-bottom: 8px; 
+            font-weight: 500;
+            color: #333;
+            font-size: 14px;
+        }
+        
+        textarea, input[type="text"], select { 
+            width: 100%; 
+            padding: 10px 12px; 
+            border: 1px solid #ddd; 
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: inherit;
+            transition: border-color 0.2s;
+        }
+        
+        textarea:focus, input[type="text"]:focus, select:focus {
+            outline: none;
+            border-color: #2196F3;
+            box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.1);
+        }
+        
+        textarea { 
+            min-height: 150px;
+            font-family: 'Courier New', monospace;
+            resize: vertical;
+        }
+        
+        button { 
+            padding: 12px 24px; 
+            background-color: #2196F3; 
+            color: white; 
+            border: none; 
+            border-radius: 6px; 
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: background-color 0.2s;
+            width: 100%;
+        }
+        
+        button:hover { 
+            background-color: #1976D2; 
+        }
+        
+        button:disabled { 
+            background-color: #ccc; 
+            cursor: not-allowed; 
+        }
+        
+        #statusMessage { 
+            margin: 20px 0; 
+            padding: 12px 16px; 
+            border-radius: 6px; 
+            background-color: #fff3cd;
+            color: #856404;
+            font-weight: 500;
+            font-size: 14px;
+            border-left: 4px solid #ffc107;
+        }
+        
+        .error-message { 
+            color: #721c24;
+            background-color: #f8d7da;
+            border-left-color: #f44336;
+        }
+        
+        .success-message { 
+            color: #155724;
+            background-color: #d4edda;
+            border-left-color: #4caf50;
+        }
+
+        .molecule-viz { 
+            display: flex; 
+            flex-direction: column;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .mol-card { 
+            border: 1px solid #e0e0e0; 
+            padding: 20px; 
+            border-radius: 8px; 
+            text-align: center;
+            background: #fafafa;
+        }
+        
+        .mol-card h4 { 
+            margin: 0 0 15px 0;
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .params-row {
+            display: flex;
+            gap: 15px;
+            align-items: flex-end;
+            flex-wrap: wrap;
+        }
+        
+        .params-row > div {
+            flex: 1;
+            min-width: 120px;
+        }
+        
+        small {
+            color: #666;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+        
+        .fp-description {
+            background-color: #f8f9fa;
+            padding: 12px 16px;
+            border-radius: 6px;
+            border-left: 3px solid #2196F3;
+            margin-top: 10px;
+        }
+        
+        #similarityInfo {
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        #similarityInfo strong {
+            font-size: 18px;
+        }
+        
+        #similarityInfo small {
+            color: rgba(255,255,255,0.9);
+        }
+        
+        .library-info {
+            background-color: #e3f2fd;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            border-left: 4px solid #2196F3;
+        }
+        
+        .library-info h3 {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #1565c0;
+        }
+        
+        /* About tab styling */
+        .about-content {
+            background: white;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .library-content {
+            background: white;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        @media (max-width: 1024px) {
+            .search-layout {
+                grid-template-columns: 1fr;
+            }
+            
+            .search-setup {
+                position: relative;
+                top: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <div class="header-content">
+            <h1>Compound Similarity Search (by Vladimir Chupakhin)</h1>
+            <div class="tabs">
+                <button class="tab active" onclick="switchTab('search')">Search</button>
+                <button class="tab" onclick="switchTab('library')">Library</button>
+                <button class="tab" onclick="switchTab('about')">About</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Search Tab -->
+        <div id="searchTab" class="tab-content active">
+            <div class="search-layout">
+                <!-- Left Column: Setup -->
+                <div class="search-setup">
+                    <h3 class="section-title">⚙️ Setup</h3>
+                    
+                    <div class="input-group">
+                        <label for="querySmiles">Query Compound (SMILES):</label>
+                        <input type="text" id="querySmiles" value="CCN(C)CCC1=CNC2=C1C=C(C=C2)F" placeholder="Enter query SMILES (e.g., Bretisilocin)">
+                    </div>
+
+                    <div class="input-group">
+                        <label for="fingerprintType">Fingerprint Type:</label>
+                        <select id="fingerprintType" onchange="updateFingerprintOptions()">
+                            <option value="morgan" selected>Morgan (ECFP)</option>
+                            <option value="rdkit">RDKit Topological</option>
+                            <option value="maccs">MACCS Keys</option>
+                            <option value="atompair">Atom Pair</option>
+                            <option value="topological_torsion">Topological Torsion</option>
+                        </select>
+                    </div>
+
+                    <div class="input-group" id="morganOptions">
+                        <label>Parameters:</label>
+                        <div class="params-row">
+                            <div>
+                                <label for="radiusSelect" style="font-weight: normal; font-size: 13px;">Radius:</label>
+                                <select id="radiusSelect">
+                                    <option value="1">1</option>
+                                    <option value="2" selected>2</option>
+                                    <option value="3">3</option>
+                                    <option value="4">4</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="nBitsSelect" style="font-weight: normal; font-size: 13px;">nBits:</label>
+                                <select id="nBitsSelect">
+                                    <option value="512">512</option>
+                                    <option value="1024">1024</option>
+                                    <option value="2048" selected>2048</option>
+                                    <option value="4096">4096</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="fp-description">
+                            <small>Radius 2 = ECFP4 (standard)</small>
+                        </div>
+                    </div>
+
+                    <div class="input-group" id="rdkitOptions" style="display: none;">
+                        <label>Parameters:</label>
+                        <div class="params-row">
+                            <div>
+                                <label for="rdkitMinPath" style="font-weight: normal; font-size: 13px;">Min:</label>
+                                <select id="rdkitMinPath">
+                                    <option value="1" selected>1</option>
+                                    <option value="2">2</option>
+                                    <option value="3">3</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="rdkitMaxPath" style="font-weight: normal; font-size: 13px;">Max:</label>
+                                <select id="rdkitMaxPath">
+                                    <option value="5">5</option>
+                                    <option value="6">6</option>
+                                    <option value="7" selected>7</option>
+                                    <option value="8">8</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="rdkitNBits" style="font-weight: normal; font-size: 13px;">nBits:</label>
+                                <select id="rdkitNBits">
+                                    <option value="1024">1024</option>
+                                    <option value="2048" selected>2048</option>
+                                    <option value="4096">4096</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="fp-description">
+                            <small>Path-based topology</small>
+                        </div>
+                    </div>
+
+                    <div class="input-group" id="maccsOptions" style="display: none;">
+                        <div class="fp-description">
+                            <small><strong>166-bit</strong> structural keys (fixed)</small>
+                        </div>
+                    </div>
+
+                    <div class="input-group" id="atompairOptions" style="display: none;">
+                        <label>Parameters:</label>
+                        <div class="params-row">
+                            <div>
+                                <label for="atompairNBits" style="font-weight: normal; font-size: 13px;">nBits:</label>
+                                <select id="atompairNBits">
+                                    <option value="1024">1024</option>
+                                    <option value="2048" selected>2048</option>
+                                    <option value="4096">4096</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="fp-description">
+                            <small>Atom pairs + distances</small>
+                        </div>
+                    </div>
+
+                    <div class="input-group" id="torsionOptions" style="display: none;">
+                        <label>Parameters:</label>
+                        <div class="params-row">
+                            <div>
+                                <label for="torsionNBits" style="font-weight: normal; font-size: 13px;">nBits:</label>
+                                <select id="torsionNBits">
+                                    <option value="1024">1024</option>
+                                    <option value="2048" selected>2048</option>
+                                    <option value="4096">4096</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="fp-description">
+                            <small>4-atom sequences</small>
+                        </div>
+                    </div>
+
+                    <button id="searchButton" onclick="performSimilaritySearch()">🔍 Search</button>
+
+                    <div id="statusMessage">
+                        <p>Loading RDKit module...</p>
+                    </div>
+                </div>
+
+                <!-- Right Column: Results -->
+                <div class="search-results">
+                    <h3 class="section-title">📊 Results</h3>
+                    
+                    <div id="resultsPlaceholder" class="results-placeholder">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"/>
+                            <path d="M12 6v6l4 2"/>
+                        </svg>
+                        <div>
+                            <p style="font-size: 16px; font-weight: 500; margin-bottom: 8px;">No results yet</p>
+                            <p style="font-size: 14px;">Configure your search and click "Search" to find similar compounds</p>
+                        </div>
+                    </div>
+
+                    <div id="results" style="display:none;">
+                        <!-- Query Section -->
+                        <div class="query-section">
+                            <div class="query-header">Query Compound</div>
+                            <div class="query-display">
+                                <div class="query-mol-container">
+                                    <div id="queryMolViz"></div>
+                                </div>
+                                <div>
+                                    <div class="query-smiles-display" id="querySmilesOut"></div>
+                                    <div class="query-stats">
+                                        <div class="query-stat-item">
+                                            <span class="query-stat-label">Found:</span>
+                                            <span class="query-stat-value" id="totalMatches">0</span>
+                                        </div>
+                                        <div class="query-stat-item">
+                                            <span class="query-stat-label">Showing:</span>
+                                            <span class="query-stat-value" id="showingMatches">0</span>
+                                        </div>
+                                        <div class="query-stat-item">
+                                            <span class="query-stat-label">Best Match:</span>
+                                            <span class="query-stat-value" id="bestSimilarity">0.00</span>
+                                        </div>
+                                        <div class="query-stat-item">
+                                            <span class="query-stat-label">Avg Similarity:</span>
+                                            <span class="query-stat-value" id="avgSimilarity">0.00</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Matches Section -->
+                        <div class="matches-section">
+                            <div class="matches-controls">
+                                <div class="matches-title">Top Matches (sorted by similarity)</div>
+                                <div class="view-controls">
+                                    <div class="results-limit-control">
+                                        <label for="resultsLimit">Show:</label>
+                                        <select id="resultsLimit" class="results-limit" onchange="updateResultsDisplay()">
+                                            <option value="6">6</option>
+                                            <option value="10" selected>10</option>
+                                            <option value="20">20</option>
+                                            <option value="50">50</option>
+                                            <option value="-1">All</option>
+                                        </select>
+                                    </div>
+                                    <div class="view-toggle">
+                                        <button class="view-btn active" onclick="switchView('grid')">Grid</button>
+                                        <button class="view-btn" onclick="switchView('table')">Table</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Grid View -->
+                            <div class="results-grid" id="resultsGrid"></div>
+
+                            <!-- Table View -->
+                            <div class="results-table-container" id="resultsTableContainer">
+                                <table class="results-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Rank</th>
+                                            <th>Structure</th>
+                                            <th>Similarity</th>
+                                            <th>Name</th>
+                                            <th>SMILES</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="resultsTableBody"></tbody>
+                                </table>
+                            </div>
+
+                            <!-- Footer -->
+                            <div class="results-footer">
+                                <div class="pagination-info" id="paginationInfo"></div>
+                                <div class="results-actions">
+                                    <button class="action-btn" onclick="exportResults('csv')">📥 Export CSV</button>
+                                    <button class="action-btn" onclick="exportResults('json')">📥 Export JSON</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Library Tab -->
+        <div id="libraryTab" class="tab-content">
+            <div class="library-content">
+                <div class="library-info">
+                    <h3>📚 SMILES Library</h3>
+                    <p>Add your compound library here. Use <strong>tab-separated</strong> format: first column is SMILES, additional columns can contain names, IDs, or other metadata.</p>
+                    <p style="margin-top: 8px; font-family: monospace; font-size: 12px; background: #f5f5f5; padding: 8px; border-radius: 4px;">
+                        Example: <code>CC(=O)Oc1ccccc1C(=O)O&nbsp;&nbsp;&nbsp;&nbsp;Aspirin&nbsp;&nbsp;&nbsp;&nbsp;CHEMBL25</code>
+                    </p>
+                </div>
+                
+                <div class="input-group">
+                    <label for="librarySmiles">SMILES Library (One per line, tab-separated):</label>
+                    <textarea id="librarySmiles" placeholder="SMILES	Name	Source
+CN1C=NC2=C1C(=O)N(C(=O)N2C)C	Caffeine	Example">C[C@H](CC1=CC2=C(C=C1)OCO2)N(C)C	(R)-MDMA	Investigational Hallucinogens
+CC(C)N(C(C)C)CCC1=CNC2=C1C(OC(=O)O)=CC=C2	Luvesilocin	Investigational Hallucinogens
+CC(C)N(C)CCC1=CNC2=CC(OC)=CC=C21	5-MeO-MiPT	Investigational Hallucinogens
+CC(C)N(CCC1=CNC2=C1C=C(C=C2)OC)CC=C	ASR-3001	Investigational Hallucinogens
+CC(CC1=CC2=C(C=C1)OCO2)N(C)C	Midomafetamine (racemic MDMA)	Investigational Hallucinogens
+CC(CC1=CC2=C(C=C1)OCO2)N(CC)C	MBDB	Investigational Hallucinogens
+CC(CC1=CC2=C(C=C1)OCO2)NC(=O)[C@@H](N)CCCCN	Lys-MDA	Investigational Hallucinogens
+CC1=CC(=CC=C1)C(C(=O)C)N(C)C	3-Methylmethcathinone	Investigational Hallucinogens
+CCCCN(C)CCC1=CNC2=C1C=C(OC)C=C2	Mebufotenin	Investigational Hallucinogens
+CCCOC1=C(C=C(C(=C1)CCN)OC)Br	ASR-2001	Investigational Hallucinogens
+CCN(C)CCC1=CNC2=C1C=C(C=C2)F	Bretisilocin	Investigational Hallucinogens
+CCN(CC)C(=O)[C@H]1C=C2C3=CC=CC=C3N(C)[C@@H]2CC4=C1NC5=CC=CC=C45	Lysergic acid diethylamide	Investigational Hallucinogens
+CCN(CC)C(=O)[C@H]1CN(C)[C@H]2C=C3C(=C[C@H]2[C@H]1CC4=CNC5=CC=CC(Br)=C45)C=CC3=O	2-Bromo-LSD	Investigational Hallucinogens
+CCN(CC)CCC1=CNC2=CC(=C(C=C21)O)OC	Bufotenin	Investigational Hallucinogens
+CCN(CC)CCOC1=CC=C(C=C1)C2=CC(=O)N(CC2)CC3=CC=CC=C3	OSU-6162	Investigational Hallucinogens
+CCN(CC)CCOC1=CC2=C(C=C1)N3C(=O)C4=CC=CC=C4C3=C(C2)Cl	Zalsupindole	Investigational Hallucinogens
+CCOC1=C(C=CC(=C1)C2=CC(=O)N(CCN2C)CC3=CC=CC=C3)OC	Blixeprodil	Investigational Hallucinogens
+CCOC1=CC(=CC(=C1)C2=CC(=O)N(CCN2C)CC3=CC=CC=C3)OC	Zolunicant	Investigational Hallucinogens
+CCOC1=CC(=CC(=C1)C2=CC(=O)N(CCN2CC3=CC=CC=C3)CC4=CC=CC=C4)OC	Ketanserin	Investigational Hallucinogens
+CN(C(C)CC1=CC2=C(C=C1)OCO2)C(=O)[C@@H](N)CCCCN	Lys-MDMA	Investigational Hallucinogens
+CN(C)[C@H]1CCCCC1(C2=CC=CC(Cl)=C2)=O	Arketamine	Investigational Hallucinogens
+CN(C)[C@H]1CCCCC1(C2=CC=CC(Cl)=C2)=O (S‑enantiomer of ketamine)	Esketamine	Investigational Hallucinogens
+CN(C)[C@H]1CCCCC1(C2=CC=CC(F)=C2)=O	2-Fluorodeschloroketamine	Investigational Hallucinogens
+CN(C)C([2H])([2H])C([2H])([2H])c1c[nH]c2ccccc12	SPL028	Investigational Hallucinogens
+CN(C)C1(CCCCC1=O)C2=CC=CC(Cl)=C2	Ketamine	Investigational Hallucinogens
+CN(C)CCC1=CNC2=C1C(=CC=C2)O[P](=Se)(O)O	MSP-1014	Investigational Hallucinogens
+CN(C)CCC1=CNC2=C1C(=CC=C2)OP(=O)(O)O	CYB003	Investigational Hallucinogens
+CN(C)CCC1=CNC2=C1C(O)=CC=C2	SPT-348	Investigational Hallucinogens
+CN(C)CCC1=CNC2=C1C=C(C=C2)OC	BMND07	Investigational Hallucinogens
+CN(C)CCC1=CNC2=C1C=CC=C2	CYB004	Investigational Hallucinogens
+CN(C)CCC1=CNC2=CC=CC=C21	Dimethyltryptamine	Investigational Hallucinogens
+CN[C@@H](C)Cc1cc2c(cc1OC)OCC2	LPH-5 (drug)	Investigational Hallucinogens
+CN1C=C(C2=CC(=C(C=C21)O)OC)CCO	Psilocin	Investigational Hallucinogens
+CN1C=C(C2=CC(=C(C=C21)OP(=O)(O)O)O)CCO	Psilocybin	Investigational Hallucinogens
+CN1c2cccc3c2N(CC12CC2)[C@H]1CCN(CCc2noc4ccccc24)C[C@@H]31	ITI-1549	Investigational Hallucinogens
+CNC1=CC2=C(C=C1O)NC3=C2C(=O)N(C)C(=O)C3	Norbaeocystin	Investigational Hallucinogens
+CNCC1=CC2=C(C=C1O)NC3=C2C(=O)N(C)C(=O)C3	Baeocystin	Investigational Hallucinogens
+CNCC1=CC2=C(C=C1O)NC3=C2C(=O)N(C)C(=O)C3	Norpsilocin	Investigational Hallucinogens
+COC1=CC(=CC(=C1)C(=O)C(C)N(C)C)OC	Methylone	Investigational Hallucinogens
+COC1=CC(=CC(=C1O)OCCN(CC)CC)OC	Mescaline	Investigational Hallucinogens
+COC1=CC2=C(C=C1)N3CCCCC4(C3C2)CC5=CC=CC=C54	Ibogaine	Investigational Hallucinogens
+COC1=CC2=C(C=C1O)N3CCCCC4(C3C2)CC5=CC=CC=C54	Noribogaine	Investigational Hallucinogens
+COC1=CC2=C(C=C1OCC3=CC=CC=C3)N4CCCCC5(C4C2)CC6=CC=CC=C65	Tabernanthalog	Investigational Hallucinogens
+COC1=CC2=C(CC(C2)N)C=C1	5-MeO-AI	Investigational Hallucinogens
+COc1cc(CC2CC2)c(OC)cc1C[C@@H](C)N	LPH-48	Investigational Hallucinogens
+CCC(Cc1cc(OC)c(c(c1)OC)OC)N	AEM	Shulgin's books
+NCCc1cc(OC)c(c(c1)OC)OCC=C	AL	Shulgin's books
+COc1cc(SC)c(cc1CC(N)C)OC	ALEPH	Shulgin's books
+CCSc1cc(OC)c(cc1OC)CC(N)C	ALEPH-2	Shulgin's books
+COc1cc(SC(C)C)c(cc1CC(N)C)OC	ALEPH-4	Shulgin's books
+CCCSc1cc(OC)c(cc1OC)CC(N)C	ALEPH-7	Shulgin's books
+CCC(Cc1cc(OC)c(cc1OC)C)N	ARIADNE	Shulgin's books
+NCCc1cc(OCC)c(c(c1)OC)OCC	ASB	Shulgin's books
+CCCCOc1c(OC)cc(cc1OC)CCN	B	Shulgin's books
+CNC(Cc1cc(OC)c(cc1OC)C)C	BEATRICE	Shulgin's books
+CSc1cc(C)c(cc1CC(N)C)SC	BIS-TOM	Shulgin's books
+COC(c1cc(OC)c(cc1OC)Br)CN	BOB	Shulgin's books
+COC(c1cc(OC)c(cc1OC)C)CN	BOD	Shulgin's books
+COC(c1ccc2c(c1)OCO2)CN	BOH	Shulgin's books
+NCC(c1cc(OC)c(cc1OC)C)O	BOHD	Shulgin's books
+NCC(c1cc(OC)c(c(c1)OC)OC)OC	BOM	Shulgin's books
+C1=C(C(=C(C=C1CC(C)N)OC)Br)OC	4-BR-3,5-DMA	Shulgin's books
+Brc1cc2c(OCO2)cc1CC(C)N	2-BR-4,5-MDA	Shulgin's books
+NCCc1cc(OC)c(cc1OC)Br	2C-B	Shulgin's books
+NCCc1cc(OC)c(cc1OC)C	2C-D	Shulgin's books
+COc1cc(CC(N)C)cc(c1OCc1ccccc1)OC	3C-BZ	Shulgin's books
+NCCc1cc(OC)c(cc1OC)Cl	2C-C	Shulgin's books
+NCCc1cc(OC)c(cc1OC)CC	2C-E	Shulgin's books
+CCOc1c(OC)cc(cc1OC)CC(N)C	3C-E	Shulgin's books
+NCCc1cc(OC)c(cc1OC)F	2C-F	Shulgin's books
+NCCc1cc(OC)c(c(c1OC)C)C	2C-G	Shulgin's books
+NCCc1cc(OC)c2c(c1OC)CCC2	2C-G-3	Shulgin's books
+NCCc1cc(OC)c2c(c1OC)CCCC2	2C-G-4	Shulgin's books
+NCCc1cc(OC)c2c(c1OC)C1CCC2C1	2C-G-5	Shulgin's books
+NCCc1cc(OC)c2c(c1OC)cccc2	2C-G-N	Shulgin's books
+NCCc1cc(OC)ccc1OC	2C-H	Shulgin's books
+NCCc1cc(OC)c(cc1OC)I	2C-I	Shulgin's books
+NCCc1cc(OC)c(cc1OC)N(=O)=O	2C-N	Shulgin's books
+NCCc1cc(OC)c(cc1OC)OC(C)C	2C-O-4	Shulgin's books
+CCCc1cc(OC)c(cc1OC)CCN	2C-P	Shulgin's books
+NCCc1cc(OC)c(c(c1)OC)OCC1CC1	CPM	Shulgin's books
+NCCc1cc(OC)c(cc1OC)[Se]C	2C-SE	Shulgin's books
+NCCc1cc(OC)c(cc1OC)SC	2C-T	Shulgin's books
+NCCc1cc(OC)c(cc1OC)SCC	2C-T-2	Shulgin's books
+NCCc1cc(OC)c(cc1OC)SC(C)C	2C-T-4	Shulgin's books
+CC(C)Sc1cc(OC)c(cc1OC)CCN	gamma-2C-T-4	Shulgin's books
+CCCSc1cc(OC)c(cc1OC)CCN	2C-T-7	Shulgin's books
+NCCc1cc(OC)c(cc1OC)SCC1CC1	2C-T-8	Shulgin's books
+NCCc1cc(OC)c(cc1OC)SC(C)(C)C	2C-T-9	Shulgin's books
+COCCSc1cc(OC)c(cc1OC)CCN	2C-T-13	Shulgin's books
+NCCc1cc(OC)c(cc1OC)SC1CC1	2C-T-15	Shulgin's books
+NCCc1cc(OC)c(cc1OC)SC(CC)C	2C-T-17	Shulgin's books
+NCCc1cc(OC)c(cc1OC)SCCF	2C-T-21	Shulgin's books
+NCCc1cc(OC)c(c(c1)OC)OC([2H])([2H])[2H]	4-D	Shulgin's books
+COc1c(cc(cc1OC)C([2H])([2H])CN)OC	beta-D	Shulgin's books
+NCCc1cc(OC)c(c(c1)OC)C	DESOXY	Shulgin's books
+COc1cc(OC)ccc1CC(N)C	2,4-DMA	Shulgin's books
+COc1ccc(c(c1)CC(N)C)OC	2,5-DMA	Shulgin's books
+COc1cc(ccc1OC)CC(N)C	3,4-DMA	Shulgin's books
+COc1cc(C)c(cc1C1CC1N)OC	DMCPA	Shulgin's books
+NCC(c1ccc(c(c1)OC)OC)O	DME	Shulgin's books
+COc1cc(CC(N)C)c(c2c1OCO2)OC	DMMDA	Shulgin's books
+COc1c(CC(N)C)cc2c(c1OC)OCO2	DMMDA-2	Shulgin's books
+NCCc1ccc(c(c1)OC)OC	DMPEA	Shulgin's books
+CCCCCc1cc(OC)c(cc1OC)CC(N)C	DOAM	Shulgin's books
+COc1cc(Br)c(cc1CC(N)C)OC	DOB	Shulgin's books
+CCCCc1cc(OC)c(cc1OC)CC(N)C	DOBU	Shulgin's books
+COc1cc(Cl)c(cc1CC(N)C)OC	DOC	Shulgin's books
+FCCc1cc(OC)c(cc1OC)CC(N)C	DOEF	Shulgin's books
+COc1cc(CC)c(cc1CC(N)C)OC	DOET	Shulgin's books
+COc1cc(I)c(cc1CC(N)C)OC	DOI	Shulgin's books
+COc1cc(C)c(cc1CC(N)C)OC	DOM	Shulgin's books
+COc1cc(N(=O)=O)c(cc1CC(N)C)OC	DON	Shulgin's books
+CCCc1cc(OC)c(cc1OC)CC(N)C	DOPR	Shulgin's books
+NCCc1cc(OC)c(c(c1)OC)OCC	E	Shulgin's books
+CCOc1cc(OCC)c(cc1CC(N)C)OCC	EEE	Shulgin's books
+CCOc1cc(OCC)c(cc1CC(N)C)OC	EEM	Shulgin's books
+CCOc1cc(OC)c(cc1CC(N)C)OCC	EME	Shulgin's books
+COC(=O)[C@H]1[C@@H](O)CC2N(C1CC2)C	EME	Shulgin's books
+CCOc1cc(OC)c(cc1CC(N)C)OC	EMM	Shulgin's books
+CCNC(Cc1ccc2c(c1)OCO2)CC	ETHYL-J	Shulgin's books
+CCCC(Cc1ccc2c(c1)OCO2)NCC	ETHYL-K	Shulgin's books
+COc1cc2CC(Oc2cc1CC(N)C)C	F-2	Shulgin's books
+COc1cc2CC(Oc2cc1CC(N)C)(C)C	F-22	Shulgin's books
+CN(C(Cc1ccc2c(c1)OCO2)C)O	FLEA	Shulgin's books
+COc1cc(CC(N)C)c(c2c1CCC2)OC	G-3	Shulgin's books
+COc1cc(CC(N)C)c(c2c1CCCC2)OC	G-4	Shulgin's books
+COc1cc(CC(N)C)c(c2c1C1CCC2C1)OC	G-5	Shulgin's books
+COc1cc(CC(N)C)c(c(c1C)C)OC	GANESHA	Shulgin's books
+COc1cc(CC(N)C)c(c2c1cccc2)OC	G-N	Shulgin's books
+ONCCc1cc(OC)c(cc1OC)SCC	HOT-2	Shulgin's books
+ONCCc1cc(OC)c(cc1OC)SCCC	HOT-7	Shulgin's books
+ONCCc1cc(OC)c(cc1OC)SC(CC)C	HOT-17	Shulgin's books
+COc1cc(I)c(cc1CC(N(C)C)C)OC	IDNNA	Shulgin's books
+NCCc1ccc(c(c1OC)OC)OC	IM	Shulgin's books
+NCCc1cc(OC)c(c(c1)OC)OC(C)C	IP	Shulgin's books
+CCOc1cc(CC(N)C)c(cc1C)OC	IRIS	Shulgin's books
+CCC(Cc1ccc2c(c1)OCO2)N	J	Shulgin's books
+NCCc1cc(OC)c2c(c1)OCO2	LOPHOPHINE	Shulgin's books
+NCCc1cc(OC)c(c(c1)OC)OC	M	Shulgin's books
+COc1ccc(cc1)CC(N)C	4-MA	Shulgin's books
+CC(Cc1ccc(cc1)C)N	4-MA	Shulgin's books
+Cc1cc2OCOc2cc1CC(NC)C	MADAM-6	Shulgin's books
+NCCc1cc(OC)c(c(c1)OC)OCC(=C)C	MAL	Shulgin's books
+CC(Cc1ccc2c(c1)OCO2)N	MDA	Shulgin's books
+C=CCNC(Cc1ccc2c(c1)OCO2)C	MDAL	Shulgin's books
+CCCCNC(Cc1ccc2c(c1)OCO2)C	MDBU	Shulgin's books
+CC(Cc1ccc2c(c1)OCO2)NCc1ccccc1	MDBZ	Shulgin's books
+CC(Cc1ccc2c(c1)OCO2)NCC1CC1	MDCPM	Shulgin's books
+CN(C(Cc1ccc2c(c1)OCO2)C)C	MDDM	Shulgin's books
+CCNC(Cc1ccc2c(c1)OCO2)C	MDE	Shulgin's books
+OCCNC(Cc1ccc2c(c1)OCO2)C	MDHOET	Shulgin's books
+CC(NC(Cc1ccc2c(c1)OCO2)C)C	MDIP	Shulgin's books
+CNC(Cc1ccc2c(c1)OCO2)C	MDMA	Shulgin's books
+CNC(Cc1ccc2c(c1)OCCO2)C	MDMC	Shulgin's books
+CONC(Cc1ccc2c(c1)OCO2)C	MDMEO	Shulgin's books
+COCCNC(Cc1ccc2c(c1)OCO2)C	MDMEOET	Shulgin's books
+CNC(Cc1ccc2c(c1)OCO2)(C)C	MDMP	Shulgin's books
+ONC(Cc1ccc2c(c1)OCO2)C	MDOH	Shulgin's books
+NCCc1ccc2c(c1)OCO2	MDPEA	Shulgin's books
+CC(Cc1ccc2c(c1)OCO2)(N)C	MDPH	Shulgin's books
+C#CCNC(Cc1ccc2c(c1)OCO2)C	MDPL	Shulgin's books
+CCCNC(Cc1ccc2c(c1)OCO2)C	MDPR	Shulgin's books
+NCCc1cc(OCC)c(c(c1)OC)OC	ME	Shulgin's books
+COc1cc(CC(N)C)cc2c1OCCO2	MEDA	Shulgin's books
+CCOc1cc(CC(N)C)c(cc1OCC)OC	MEE	Shulgin's books
+CCOc1cc(OC)c(cc1OC)CC(N)C	MEM	Shulgin's books
+NCCc1ccc(c(c1)OC)OCC	MEPEA	Shulgin's books
+COc1cc(OC)c(cc1CC(N)C)Br	META-DOB	Shulgin's books
+COc1cc(OC)c(cc1CC(N)C)SC	META-DOT	Shulgin's books
+CNC(Cc1cc(OC)ccc1OC)C	METHYL-DMA	Shulgin's books
+CNC(Cc1cc(OC)c(cc1OC)Br)C	METHYL-DOB	Shulgin's books
+CCC(Cc1ccc2c(c1)OCO2)NC	METHYL-J	Shulgin's books
+CCCC(Cc1ccc2c(c1)OCO2)NC	METHYL-K	Shulgin's books
+CNC(Cc1ccc(cc1)OC)C	METHYL-MA	Shulgin's books
+CNC(Cc1cc2OCOc2cc1OC)C	METHYL-MMDA-2	Shulgin's books
+COc1cc(CC(N)C)cc2c1OCO2	MMDA	Shulgin's books
+COc1cc2OCOc2cc1CC(N)C	MMDA-2	Shulgin's books
+COc1c(ccc2c1OCO2)CC(N)C	MMDA-3a	Shulgin's books
+COc1ccc(c2c1OCO2)CC(N)C	MMDA-3b	Shulgin's books
+CCOc1cc(CC(N)C)c(cc1OC)OC	MME	Shulgin's books
+CCCOc1cc(CCN)cc(c1OC)OC	MP	Shulgin's books
+CCCOc1cc(OC)c(cc1OC)CC(N)C	MPM	Shulgin's books
+COc1cc(CC(N)C)c(cc1OC)SC	ORTHO-DOT	Shulgin's books
+CCCOc1c(OC)cc(cc1OC)CCN	P	Shulgin's books
+NCCc1cc(OC)c(c(c1)OC)OCCc1ccccc1	PE	Shulgin's books
+NCCc1ccccc1	PEA	Shulgin's books
+NCCc1cc(OC)c(c(c1)OC)OCC#C	PROPYNYL	Shulgin's books
+NCCc1cc(OCC)c(c(c1)OCC)OC	SB	Shulgin's books
+COc1cc(CC(N)C)c(c(c1OC)OC)OC	TA	Shulgin's books
+CCCCCSc1c(OC)cc(cc1OC)CCN	TA	Shulgin's books
+NCCc1cc(SCC)c(c(c1)OC)OCC	3-TASB	Shulgin's books
+NCCc1cc(OCC)c(c(c1)OC)SCC	4-TASB	Shulgin's books
+NCCc1cc(OCC)c(c(c1)SC)OCC	5-TASB	Shulgin's books
+CCCCSc1c(OC)cc(cc1OC)CCN	TB	Shulgin's books
+NCCc1cc(OC)c(c(c1)SC)OCC	3-TE	Shulgin's books
+NCCc1cc(OC)c(c(c1)OC)SCC	TE	Shulgin's books
+NCCc1ccc(c(c1SC)OC)OC	2-TIM	Shulgin's books
+NCCc1ccc(c(c1OC)SC)OC	3-TIM	Shulgin's books
+NCCc1ccc(c(c1OC)OC)SC	4-TIM	Shulgin's books
+NCCc1cc(OC)c(c(c1)SC)OC	3-TM	Shulgin's books
+NCCc1cc(OC)c(c(c1)OC)SC	TM	Shulgin's books
+COc1cc(CC(N)C)cc(c1OC)OC	TMA	Shulgin's books
+COc1cc(OC)c(cc1CC(N)C)OC	TMA-2	Shulgin's books
+COc1c(ccc(c1OC)OC)CC(N)C	TMA-3	Shulgin's books
+COc1cc(CC(N)C)c(c(c1)OC)OC	TMA-4	Shulgin's books
+COc1ccc(c(c1CC(N)C)OC)OC	TMA-5	Shulgin's books
+COc1cc(OC)cc(c1CC(N)C)OC	TMA-6	Shulgin's books
+NCCc1cc(SCC)c(c(c1)OC)OC	3-TME	Shulgin's books
+NCCc1cc(OCC)c(c(c1)OC)SC	4-TME	Shulgin's books
+NCCc1cc(OCC)c(c(c1)SC)OC	5-TME	Shulgin's books
+CSc1c(ccc2c1OCO2)CC(N)C	2T-MMDA-3a	Shulgin's books
+COc1cc2SCOc2cc1CC(N)C	4T-MMDA-2	Shulgin's books
+NCCc1cc(OC)c(cc1OC)OC	TMPEA	Shulgin's books
+COc1cc(CC(N)C)c(cc1CC)SC	2-TOET	Shulgin's books
+COc1cc(CC)c(cc1CC(N)C)SC	5-TOET	Shulgin's books
+COc1cc(CC(N)C)c(cc1C)SC	2-TOM	Shulgin's books
+COc1cc(C)c(cc1CC(N)C)SC	5-TOM	Shulgin's books
+COc1cc(C)c(cc1CC(N)C)S(=O)C	TOMSO	Shulgin's books
+CCCSc1c(OC)cc(cc1OC)CCN	TP	Shulgin's books
+NCCc1cc(OCC)c(c(c1)OCC)OCC	TRIS	Shulgin's books
+NCCc1cc(OCC)c(c(c1)SCC)OC	3-TSB	Shulgin's books
+NCCc1cc(OCC)c(c(c1)OCC)SC	4-TSB	Shulgin's books
+CCOc1cc(CCN)cc(c1OCC)SCC	3-T-TRIS	Shulgin's books
+NCCc1cc(OCC)c(c(c1)OCC)SCC	4-T-TRIS	Shulgin's books
+C=CCN1C[C@@H](C=C2[C@H]1Cc1c[nH]c3c1c2ccc3)C(=O)N(CC)CC	AL-LAD	Shulgin's books
+CCCCN(CCc1c[nH]c2c1cccc2)CCCC	DBT	Shulgin's books
+CCN(CCc1c[nH]c2c1cccc2)CC	DET	Shulgin's books
+CC(N(C(C)C)CCc1c[nH]c2c1cccc2)C	DIPT	Shulgin's books
+COc1ccc2c(c1)c(c[nH]2)CC(N)C	a,0-DMS	Shulgin's books
+CN(CCc1c[nH]c2c1cccc2)C	DMT	Shulgin's books
+CC(Cc1c(C)[nH]c2c1cccc2)N	2,a-DMT	Shulgin's books
+CNC(Cc1c[nH]c2c1cccc2)C	a,N-DMT	Shulgin's books
+CCCN(CCc1c[nH]c2c1cccc2)CCC	DPT	Shulgin's books
+CCN(C(C)C)CCc1c[nH]c2c1cccc2	EIPT	Shulgin's books
+CCC(Cc1c[nH]c2c1cccc2)N	a-ET	Shulgin's books
+CCN(C(=O)[C@H]1CN(CC)[C@H]2C(=C1)c1cccc3c1c(C2)c[nH]3)CC	ETH-LAD	Shulgin's books
+COc1ccc2c(c1)[nH]c1c2CCN=C1C	HARMALINE	Shulgin's books
+CCN(C(=O)[C@H]1CN(C)[C@H]2C(=C1)c1cccc3c1c(C2)c[nH]3)CC	LSD-25	Shulgin's books
+CCCN1C[C@@H](C=C2[C@H]1Cc1c[nH]c3c1c2ccc3)C(=O)N(CC)CC	PRO-LAD	Shulgin's books
+COc1ccc2c(c1)[nH]c1c2ccnc1C	HARMINE	Shulgin's books
+CCCCN(CCc1c[nH]c2c1c(O)ccc2)CCCC	4-HO-DBT	Shulgin's books
+CCCCN(CCc1c[nH]c2c1cccc2)C	MBT	Shulgin's books
+CC(N(C(C)C)CCc1c[nH]c2c1c1OCOc1cc2)C	4,5-MDO-DIPT	Shulgin's books
+CC[C@H]1C[C@H]2CN3[C@@H]1[C@@H](C2)c1[nH]c2c(c1CC3)cc(cc2)OC	IBOGAINE	Shulgin's books
+Oc1cccc2c1c(CCN1CCCC1)c[nH]2	4-HO-PYR-T	Shulgin's books
+CN(CCc1c[nH]c2c1c(O)ccc2)C	4-HO-DMT	Shulgin's books
+CN(CCc1c[nH]c2c1cc(O)cc2)C	5-HO-DMT	Shulgin's books
+CC(N(C(C)C)CCc1c[nH]c2c1c(O)ccc2)C	4-HO-DIPT	Shulgin's books
+CCN(CCc1c[nH]c2c1c(O)ccc2)CC	4-HO-DET	Shulgin's books
+C1CCN(C1)CCc1c[nH]c2c1cccc2	PYR-T	Shulgin's books
+CNCCc1c[nH]c2c1cccc2	NMT	Shulgin's books
+NCCc1c[nH]c2c1cccc2	T	Shulgin's books
+CCNCCc1c[nH]c2c1cccc2	NET	Shulgin's books
+CCCN(CCc1c[nH]c2c1c(O)ccc2)C	4-HO-MPT	Shulgin's books
+CN(C(C)C)CCc1c[nH]c2c1c(O)ccc2	4-HO-MIPT	Shulgin's books
+CC(N(C(C)C)CCc1c[nH]c2c1cc1OCOc1c2)C	5,6-MDO-DIPT	Shulgin's books
+CN(CCc1c[nH]c2c1c1OCOc1cc2)C	4,5-MDO-DMT	Shulgin's books
+CN(CCc1c[nH]c2c1cc1OCOc1c2)C	5,6-MDO-DMT	Shulgin's books
+CCCN(CCc1c[nH]c2c1c(O)ccc2)CCC	4-HO-DPT	Shulgin's books
+CCN(CCc1c[nH]c2c1c(O)ccc2)C	4-HO-MET	Shulgin's books
+COc1ccc2c(c1)[nH]c1c2CCNC1C	TETRAHYDROHARMINE	Shulgin's books
+CC(Cc1c[nH]c2c1cccc2)N	a-MT	Shulgin's books
+CNC(Cc1c[nH]c2c1cc(OC)cc2)C	a,N,0-TMS	Shulgin's books
+CN(C(C)C)CCc1c[nH]c2c1cccc2	MIPT	Shulgin's books
+CC(N(CCc1c[nH]c2c1cc1OCOc1c2)C)C	5,6-MDO-MIPT	Shulgin's books
+CCN(CCc1c(C)[nH]c2c1cccc2)CC	2-ME-DET	Shulgin's books
+CSc1ccc2c(c1)c(CCN(C)C)c[nH]2	5-MES-DMT	Shulgin's books
+COc1ccc2c(c1)c(CCN(C)C)c([nH]2)C	5-MEO-TMT	Shulgin's books
+CN(CCc1c(C)[nH]c2c1cccc2)C	2-ME-DMT	Shulgin's books
+COc1ccc2c(c1)c1CCNC(c1[nH]2)C	6-MEO-THH	Shulgin's books
+COc1ccc2c(c1)c(CCNC(=O)C)c[nH]2	MELATONIN	Shulgin's books
+CCN(CCc1c[nH]c2c1cc(OC)cc2)CC	5-MEO-DET	Shulgin's books
+COc1ccc2c(c1)c(CCN(C(C)C)C(C)C)c[nH]2	5-MEO-DIPT	Shulgin's books
+COc1ccc2c(c1)c(CCN(C)C)c[nH]2	5-MEO-DMT	Shulgin's books
+COc1cccc2c1c(CCN(C(C)C)C)c[nH]2	4-MEO-MIPT	Shulgin's books
+COc1ccc2c(c1)c(CCN(C(C)C)C)c[nH]2	5-MEO-MIPT	Shulgin's books
+COc1cc2c(CCN(C(C)C)C)c[nH]c2cc1OC	5,6-MEO-MIPT	Shulgin's books
+CNCCc1c[nH]c2c1cc(OC)cc2	5-MEO-NMT	Shulgin's books
+COc1ccc2c(c1)c(CCN1CCCC1)c[nH]2	5-MEO-PYR-T	Shulgin's books</textarea>
+                </div>
+                
+                <div style="display: flex; gap: 10px;">
+                    <button onclick="clearLibrary()" style="width: auto;">Clear Library</button>
+                    <button onclick="loadExampleLibrary()" style="width: auto;">Load Example Library</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- About Tab -->
+        <div id="aboutTab" class="tab-content">
+            <div class="about-content">
+                <h2 style="margin-bottom: 20px;">About Compound Similarity Search</h2>
+                
+                <div style="line-height: 1.8;">
+                    <h3 style="font-size: 18px; margin: 20px 0 10px; color: #2196F3;">What is this tool?</h3>
+                    <p>This web application performs molecular similarity searches using various fingerprint methods. It compares a query molecule against a library of compounds to find the most similar structures based on Tanimoto similarity. Author: Vladimir Chupakhin, Data sources (compounds): wikipedia + AI-based SMILES annotation (curation steps were minimal so mistakes might be still present).</p>
+                    
+                    <h3 style="font-size: 18px; margin: 20px 0 10px; color: #2196F3;">Fingerprint Types</h3>
+                    <ul style="list-style: none; padding-left: 0;">
+                        <li style="margin: 10px 0; padding: 10px; background: #f8f9fa; border-radius: 4px;">
+                            <strong>Morgan (ECFP):</strong> Circular fingerprints based on atom neighborhoods. Most commonly used for general similarity searching.
+                        </li>
+                        <li style="margin: 10px 0; padding: 10px; background: #f8f9fa; border-radius: 4px;">
+                            <strong>RDKit Topological:</strong> Path-based fingerprints encoding molecular graph topology.
+                        </li>
+                        <li style="margin: 10px 0; padding: 10px; background: #f8f9fa; border-radius: 4px;">
+                            <strong>MACCS Keys:</strong> 166 predefined structural keys. Fast and interpretable.
+                        </li>
+                        <li style="margin: 10px 0; padding: 10px; background: #f8f9fa; border-radius: 4px;">
+                            <strong>Atom Pair:</strong> Encodes atom pairs and their topological distances.
+                        </li>
+                        <li style="margin: 10px 0; padding: 10px; background: #f8f9fa; border-radius: 4px;">
+                            <strong>Topological Torsion:</strong> Encodes sequences of 4 connected atoms.
+                        </li>
+                    </ul>
+                    
+                    <h3 style="font-size: 18px; margin: 20px 0 10px; color: #2196F3;">Technology</h3>
+                    <p>Built with <a href="https://www.rdkitjs.com/" target="_blank" style="color: #2196F3;">RDKit.js</a>, the JavaScript port of the RDKit cheminformatics toolkit. All calculations run entirely in your browser - no data is sent to any server.</p>
+                    
+                    <h3 style="font-size: 18px; margin: 20px 0 10px; color: #2196F3;">Usage Tips</h3>
+                    <ul style="padding-left: 20px;">
+                        <li>Start with Morgan fingerprints (radius=2) for general similarity</li>
+                        <li>Larger nBits values reduce collisions but increase computation time</li>
+                        <li>Try different fingerprint types for different perspectives on similarity</li>
+                        <li>MACCS Keys are fastest for large libraries</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let RDKitModule;
+        const statusElement = document.getElementById('statusMessage');
+        const searchButton = document.getElementById('searchButton');
+        
+        // Store all search results
+        let allResults = [];
+        let queryMoleculeData = null;
+
+        // Tab switching function
+        function switchTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Show selected tab
+            document.getElementById(tabName + 'Tab').classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        // View switching function
+        function switchView(view) {
+            document.querySelectorAll('.view-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            if (view === 'grid') {
+                document.getElementById('resultsGrid').style.display = 'grid';
+                document.getElementById('resultsTableContainer').classList.remove('active');
+            } else {
+                document.getElementById('resultsGrid').style.display = 'none';
+                document.getElementById('resultsTableContainer').classList.add('active');
+            }
+        }
+
+        // Update results display based on limit
+        function updateResultsDisplay() {
+            const limit = parseInt(document.getElementById('resultsLimit').value);
+            const resultsToShow = limit === -1 ? allResults : allResults.slice(0, limit);
+            
+            renderResults(resultsToShow);
+        }
+
+        // Render results in grid and table
+        function renderResults(results) {
+            const gridContainer = document.getElementById('resultsGrid');
+            const tableBody = document.getElementById('resultsTableBody');
+            
+            // Clear existing
+            gridContainer.innerHTML = '';
+            tableBody.innerHTML = '';
+            
+            // Render grid cards
+            results.forEach((result, index) => {
+                // Grid card
+                const card = document.createElement('div');
+                card.className = 'result-card';
+                const nameHtml = result.name ? `<div class="card-name">${result.name}</div>` : '';
+                card.innerHTML = `
+                    <div class="card-header">
+                        <span class="card-rank">#${index + 1}</span>
+                        <span class="card-similarity ${getSimilarityClass(result.similarity)}">${result.similarity.toFixed(4)}</span>
+                    </div>
+                    <div class="card-mol-viz" id="card-mol-${index}"></div>
+                    ${nameHtml}
+                    <div class="card-smiles">${result.smiles}</div>
+                `;
+                gridContainer.appendChild(card);
+                
+                // Render molecule
+                setTimeout(() => visualizeMoleculeInCard(`card-mol-${index}`, result.smiles), 10);
+                
+                // Table row
+                const row = document.createElement('tr');
+                const nameCell = result.name ? `<td class="table-name">${result.name}</td>` : '<td class="table-name">—</td>';
+                row.innerHTML = `
+                    <td class="table-rank">#${index + 1}</td>
+                    <td class="table-structure"><div class="table-structure-img" id="table-mol-${index}"></div></td>
+                    <td class="table-similarity ${getSimilarityClass(result.similarity)}">${result.similarity.toFixed(4)}</td>
+                    ${nameCell}
+                    <td class="table-smiles">${result.smiles}</td>
+                `;
+                tableBody.appendChild(row);
+                
+                // Render table molecule
+                setTimeout(() => visualizeMoleculeInTable(`table-mol-${index}`, result.smiles), 10);
+            });
+            
+            // Update pagination info
+            const total = allResults.length;
+            const showing = results.length;
+            document.getElementById('paginationInfo').textContent = `Showing ${showing} of ${total} results`;
+        }
+
+        // Get similarity color class
+        function getSimilarityClass(similarity) {
+            if (similarity >= 0.7) return 'high';
+            if (similarity >= 0.4) return 'medium';
+            return 'low';
+        }
+
+        // Visualize molecule in card
+        function visualizeMoleculeInCard(elementId, smiles) {
+            const container = document.getElementById(elementId);
+            if (!container) return;
+            
+            try {
+                const mol = RDKitModule.get_mol(smiles);
+                if (mol && mol.is_valid()) {
+                    const svg = mol.get_svg_with_highlights(JSON.stringify({width: 250, height: 150}));
+                    container.innerHTML = svg;
+                    mol.delete();
+                } else {
+                    container.innerHTML = '<span style="color: #999; font-size: 12px;">Invalid</span>';
+                    if (mol) mol.delete();
+                }
+            } catch (e) {
+                container.innerHTML = '<span style="color: #999; font-size: 12px;">Error</span>';
+            }
+        }
+
+        // Visualize molecule in table
+        function visualizeMoleculeInTable(elementId, smiles) {
+            const container = document.getElementById(elementId);
+            if (!container) return;
+            
+            try {
+                const mol = RDKitModule.get_mol(smiles);
+                if (mol && mol.is_valid()) {
+                    const svg = mol.get_svg_with_highlights(JSON.stringify({width: 120, height: 90}));
+                    container.innerHTML = svg;
+                    mol.delete();
+                } else {
+                    container.innerHTML = '<span style="color: #999; font-size: 10px;">Invalid</span>';
+                    if (mol) mol.delete();
+                }
+            } catch (e) {
+                container.innerHTML = '<span style="color: #999; font-size: 10px;">Error</span>';
+            }
+        }
+
+        // Export results
+        function exportResults(format) {
+            if (allResults.length === 0) return;
+            
+            if (format === 'csv') {
+                // Determine the maximum number of columns across all results
+                const maxColumns = Math.max(...allResults.map(r => r.allColumns?.length || 1));
+                
+                // Build header
+                let csv = 'Rank,SMILES,Similarity';
+                for (let i = 1; i < maxColumns; i++) {
+                    csv += `,Column_${i + 1}`;
+                }
+                csv += '\n';
+                
+                // Build rows
+                allResults.forEach((r, i) => {
+                    let row = `${i + 1},"${r.smiles}",${r.similarity}`;
+                    
+                    // Add all additional columns from original data
+                    if (r.allColumns && r.allColumns.length > 1) {
+                        for (let j = 1; j < maxColumns; j++) {
+                            const value = r.allColumns[j] || '';
+                            row += `,"${value}"`;
+                        }
+                    } else {
+                        // Fill with empty values if this result has fewer columns
+                        for (let j = 1; j < maxColumns; j++) {
+                            row += ',""';
+                        }
+                    }
+                    csv += row + '\n';
+                });
+                downloadFile(csv, 'similarity_results.csv', 'text/csv');
+            } else if (format === 'json') {
+                const json = JSON.stringify({
+                    query: queryMoleculeData,
+                    results: allResults,
+                    timestamp: new Date().toISOString()
+                }, null, 2);
+                downloadFile(json, 'similarity_results.json', 'application/json');
+            }
+        }
+
+        // Download file helper
+        function downloadFile(content, filename, mimeType) {
+            const blob = new Blob([content], { type: mimeType });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // Library management functions
+        function clearLibrary() {
+            if (confirm('Are you sure you want to clear the library?')) {
+                document.getElementById('librarySmiles').value = '';
+            }
+        }
+
+        function loadExampleLibrary() {
+            const examples = `CN1C=NC2=C1C(=O)N(C(=O)N2C)C	Caffeine	CHEMBL113	CNS Stimulant
+CC(=O)Oc1ccccc1C(=O)O	Aspirin	CHEMBL25	NSAID
+CC(=O)NC1=CC=C(O)C=C1	Paracetamol	CHEMBL112	Analgesic
+O=C(O)c1ccccc1	Benzoic acid	CHEMBL537	Preservative
+CC(C)(C)c1c(O)c(C(=O)O)c(O)c(C(C)(C)C)c1O	Gallic acid derivative	-	Antioxidant
+CCO	Ethanol	CHEMBL545	Solvent
+c1ccccc1	Benzene	CHEMBL277500	Aromatic
+CC(C)Cc1ccc(cc1)C(C)C(O)=O	Ibuprofen	CHEMBL521	NSAID
+CN(C)CCOC(c1ccccc1)c2ccccc2	Diphenhydramine	CHEMBL657	Antihistamine
+Cc1ccc(cc1)S(=O)(=O)N	Toluenesulfonamide	CHEMBL1232428	Sulfonamide`;
+            document.getElementById('librarySmiles').value = examples;
+            alert('Example library loaded with multiple columns (SMILES, Name, ID, Description)! Switch to the Search tab.');
+        }
+
+        // Function to update visible options based on fingerprint type
+        function updateFingerprintOptions() {
+            const fpType = document.getElementById('fingerprintType').value;
+            
+            // Hide all options
+            document.getElementById('morganOptions').style.display = 'none';
+            document.getElementById('rdkitOptions').style.display = 'none';
+            document.getElementById('maccsOptions').style.display = 'none';
+            document.getElementById('atompairOptions').style.display = 'none';
+            document.getElementById('torsionOptions').style.display = 'none';
+            
+            // Show relevant options
+            if (fpType === 'morgan') {
+                document.getElementById('morganOptions').style.display = 'block';
+            } else if (fpType === 'rdkit') {
+                document.getElementById('rdkitOptions').style.display = 'block';
+            } else if (fpType === 'maccs') {
+                document.getElementById('maccsOptions').style.display = 'block';
+            } else if (fpType === 'atompair') {
+                document.getElementById('atompairOptions').style.display = 'block';
+            } else if (fpType === 'topological_torsion') {
+                document.getElementById('torsionOptions').style.display = 'block';
+            }
+        }
+
+        // Helper function to get fingerprint based on selected type
+        function getFingerprint(mol) {
+            const fpType = document.getElementById('fingerprintType').value;
+            
+            switch(fpType) {
+                case 'morgan':
+                    const radius = parseInt(document.getElementById('radiusSelect').value);
+                    const nBits = parseInt(document.getElementById('nBitsSelect').value);
+                    return mol.get_morgan_fp(JSON.stringify({radius: radius, nBits: nBits}));
+                
+                case 'rdkit':
+                    const minPath = parseInt(document.getElementById('rdkitMinPath').value);
+                    const maxPath = parseInt(document.getElementById('rdkitMaxPath').value);
+                    const rdkitNBits = parseInt(document.getElementById('rdkitNBits').value);
+                    return mol.get_rdkit_fp(JSON.stringify({minPath: minPath, maxPath: maxPath, nBits: rdkitNBits}));
+                
+                case 'maccs':
+                    return mol.get_maccs_fp();
+                
+                case 'atompair':
+                    const apNBits = parseInt(document.getElementById('atompairNBits').value);
+                    return mol.get_atom_pair_fp(JSON.stringify({nBits: apNBits}));
+                
+                case 'topological_torsion':
+                    const ttNBits = parseInt(document.getElementById('torsionNBits').value);
+                    return mol.get_topological_torsion_fp(JSON.stringify({nBits: ttNBits}));
+                
+                default:
+                    throw new Error('Unknown fingerprint type');
+            }
+        }
+
+        // Helper function to get fingerprint name for display
+        function getFingerprintName() {
+            const fpType = document.getElementById('fingerprintType').value;
+            const fpNames = {
+                'morgan': 'Morgan',
+                'rdkit': 'RDKit Topological',
+                'maccs': 'MACCS Keys',
+                'atompair': 'Atom Pair',
+                'topological_torsion': 'Topological Torsion'
+            };
+            return fpNames[fpType] || fpType;
+        }
+
+        // Helper function to get fingerprint parameters for display
+        function getFingerprintParamsDisplay() {
+            const fpType = document.getElementById('fingerprintType').value;
+            
+            switch(fpType) {
+                case 'morgan':
+                    const radius = document.getElementById('radiusSelect').value;
+                    const nBits = document.getElementById('nBitsSelect').value;
+                    return `radius=${radius}, nBits=${nBits}`;
+                
+                case 'rdkit':
+                    const minPath = document.getElementById('rdkitMinPath').value;
+                    const maxPath = document.getElementById('rdkitMaxPath').value;
+                    const rdkitNBits = document.getElementById('rdkitNBits').value;
+                    return `minPath=${minPath}, maxPath=${maxPath}, nBits=${rdkitNBits}`;
+                
+                case 'maccs':
+                    return '166 bits (fixed)';
+                
+                case 'atompair':
+                    const apNBits = document.getElementById('atompairNBits').value;
+                    return `nBits=${apNBits}`;
+                
+                case 'topological_torsion':
+                    const ttNBits = document.getElementById('torsionNBits').value;
+                    return `nBits=${ttNBits}`;
+                
+                default:
+                    return '';
+            }
+        }
+
+        // Helper function to update the status box
+        function updateStatus(message, type = 'status') {
+            console.log('Status:', message);
+            statusElement.innerText = message;
+            statusElement.className = '';
+            if (type === 'error') {
+                statusElement.classList.add('error-message');
+            } else if (type === 'success') {
+                statusElement.classList.add('success-message');
+            }
+        }
+
+        // Calculate Tanimoto similarity from binary fingerprint strings
+        function calculateTanimotoSimilarity(fp1, fp2) {
+            if (fp1.length !== fp2.length) {
+                throw new Error("Fingerprints must be of equal length");
+            }
+
+            let sharedBits = 0;
+            let unionBits = 0;
+            
+            for (let i = 0; i < fp1.length; i++) {
+                if (fp1[i] === "1" && fp2[i] === "1") {
+                    sharedBits++;
+                }
+                if (fp1[i] === "1" || fp2[i] === "1") {
+                    unionBits++;
+                }
+            }
+            
+            return unionBits > 0 ? sharedBits / unionBits : 0;
+        }
+
+        // Initialize RDKit Module
+        searchButton.disabled = true;
+        window.initRDKitModule().then(function(RDKit) {
+            RDKitModule = RDKit;
+            updateStatus(`RDKit v${RDKit.version()} loaded successfully. Ready for search.`, 'success');
+            searchButton.disabled = false;
+        }).catch((err) => {
+            console.error('RDKit loading error:', err);
+            updateStatus("Error loading RDKit.js. Check console for details.", 'error');
+            searchButton.disabled = true;
+        });
+
+        // Main similarity search function
+        async function performSimilaritySearch() {
+            if (!RDKitModule) {
+                updateStatus("RDKit module is not loaded yet.", 'error');
+                return;
+            }
+
+            console.log('Starting similarity search...');
+            searchButton.disabled = true;
+            document.getElementById('results').style.display = 'none';
+
+            const querySmiles = document.getElementById('querySmiles').value.trim();
+            const libraryLines = document.getElementById('librarySmiles').value.split('\n')
+                .map(s => s.trim())
+                .filter(s => s.length > 0);
+            
+            // Parse library: first column is SMILES, rest are metadata
+            const libraryData = libraryLines.map(line => {
+                // Try tab separation first
+                let parts = line.split('\t').filter(p => p.trim().length > 0);
+                
+                // If only one part found, try space separation
+                if (parts.length === 1) {
+                    parts = line.split(/\s+/).filter(p => p.trim().length > 0);
+                }
+                
+                const smiles = parts[0];
+                const name = parts[1] || '';
+                const allMetadata = parts.slice(1); // Everything after SMILES
+                
+                return {
+                    smiles: smiles,
+                    name: name,
+                    metadata: allMetadata,
+                    allColumns: parts // Store all columns for export
+                };
+            });
+            
+            const totalCompounds = libraryData.length;
+            
+            if (totalCompounds === 0) {
+                updateStatus("The SMILES library is empty. Please enter compounds.", 'error');
+                searchButton.disabled = false;
+                return;
+            }
+
+            updateStatus(`Processing query compound...`);
+            await new Promise(resolve => setTimeout(resolve, 50));
+
+            // Process query molecule and get fingerprint
+            let queryMol;
+            let queryFP;
+            
+            try {
+                queryMol = RDKitModule.get_mol(querySmiles);
+                if (!queryMol || queryMol.is_valid() === false) {
+                    throw new Error("Invalid Query SMILES.");
+                }
+                // Get fingerprint using selected type and parameters
+                queryFP = getFingerprint(queryMol);
+                queryMol.delete();
+                
+                const fpName = getFingerprintName();
+                const fpParams = getFingerprintParamsDisplay();
+                updateStatus(`Query processed (${fpName}: ${fpParams}). Starting comparison with ${totalCompounds} library compounds...`);
+                await new Promise(resolve => setTimeout(resolve, 50));
+            } catch (e) {
+                updateStatus(`Error processing query SMILES: ${e.message}`, 'error');
+                searchButton.disabled = false;
+                if (queryMol) queryMol.delete();
+                return;
+            }
+
+            // Process library compounds in batches
+            allResults = []; // Clear previous results
+            let validCompoundCount = 0;
+            const batchSize = 10;
+
+            for (let i = 0; i < totalCompounds; i += batchSize) {
+                const endIndex = Math.min(i + batchSize, totalCompounds);
+                
+                // Process one batch
+                for (let j = i; j < endIndex; j++) {
+                    const entry = libraryData[j];
+                    const currentSmiles = entry.smiles;
+                    let currentMol = null;
+
+                    try {
+                        currentMol = RDKitModule.get_mol(currentSmiles);
+                        if (!currentMol || currentMol.is_valid() === false) {
+                            if (currentMol) currentMol.delete();
+                            continue;
+                        }
+                        
+                        validCompoundCount++;
+                        
+                        // Get fingerprint using selected type and parameters
+                        const currentFP = getFingerprint(currentMol);
+                        currentMol.delete();
+                        
+                        // Calculate Tanimoto similarity
+                        const tanimotoSimilarity = calculateTanimotoSimilarity(queryFP, currentFP);
+
+                        // Store result with all metadata
+                        allResults.push({
+                            smiles: currentSmiles,
+                            similarity: tanimotoSimilarity,
+                            name: entry.name,
+                            metadata: entry.metadata,
+                            allColumns: entry.allColumns
+                        });
+                    } catch (e) {
+                        console.error(`Error processing SMILES at index ${j}:`, currentSmiles, e);
+                        if (currentMol) currentMol.delete();
+                    }
+                }
+
+                // Update progress after each batch
+                updateStatus(`Calculating similarity: ${Math.min(endIndex, totalCompounds)} of ${totalCompounds} compounds processed...`);
+                
+                // Yield to browser to update UI
+                await new Promise(resolve => setTimeout(resolve, 10));
+            }
+
+            searchButton.disabled = false;
+
+            // Sort results by similarity (descending)
+            allResults.sort((a, b) => b.similarity - a.similarity);
+
+            // Display results
+            if (allResults.length > 0) {
+                const fpName = getFingerprintName();
+                const fpParams = getFingerprintParamsDisplay();
+                
+                updateStatus(`Search complete! Found ${validCompoundCount} valid compounds.`, 'success');
+                
+                // Store query molecule data
+                queryMoleculeData = {
+                    smiles: querySmiles,
+                    fingerprint: fpName,
+                    parameters: fpParams
+                };
+                
+                // Hide placeholder, show results
+                document.getElementById('resultsPlaceholder').style.display = 'none';
+                document.getElementById('results').style.display = 'block';
+                
+                // Update summary statistics
+                document.getElementById('totalMatches').textContent = allResults.length;
+                const limit = parseInt(document.getElementById('resultsLimit').value);
+                const showing = limit === -1 ? allResults.length : Math.min(limit, allResults.length);
+                document.getElementById('showingMatches').textContent = showing;
+                
+                const avgSim = allResults.reduce((sum, r) => sum + r.similarity, 0) / allResults.length;
+                document.getElementById('avgSimilarity').textContent = avgSim.toFixed(3);
+                
+                const bestSim = allResults[0].similarity;
+                document.getElementById('bestSimilarity').textContent = bestSim.toFixed(3);
+                
+                // Display query molecule
+                visualizeMolecule('querySmilesOut', 'queryMolViz', querySmiles);
+                
+                // Render results
+                updateResultsDisplay();
+            } else if (validCompoundCount === 0) {
+                updateStatus("Search complete, but no valid compounds were found in the library for comparison.", 'error');
+            } else {
+                updateStatus("An unexpected error occurred during search.", 'error');
+            }
+        }
+
+        // Visualization helper
+        function visualizeMolecule(smilesElementId, vizElementId, smiles) {
+            const molVizContainer = document.getElementById(vizElementId);
+            const smilesOutElement = document.getElementById(smilesElementId);
+            
+            molVizContainer.innerHTML = '';
+            smilesOutElement.innerText = smiles;
+
+            try {
+                const mol = RDKitModule.get_mol(smiles);
+                if (mol && mol.is_valid()) {
+                    const svg = mol.get_svg();
+                    molVizContainer.innerHTML = svg;
+                    mol.delete();
+                } else {
+                    molVizContainer.innerText = 'Invalid Structure';
+                    if (mol) mol.delete();
+                }
+            } catch (e) {
+                molVizContainer.innerText = 'Visualization Error';
+                console.error("Visualization error:", e);
+            }
+        }
+    </script>
+
+</body>
+</html>
