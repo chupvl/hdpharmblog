@@ -1,0 +1,1163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Compound Similarity Search: comparison mode (by Vladimir Chupakhin)</title>
+    <script src="https://unpkg.com/@rdkit/rdkit/dist/RDKit_minimal.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f0f2f5;
+            color: #333;
+        }
+
+        /* ---- Header ---- */
+        .header {
+            background: white;
+            border-bottom: 1px solid #e0e0e0;
+            padding: 0;
+        }
+        .header-content {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 18px 30px 0;
+        }
+        h1 { font-size: 22px; font-weight: 700; color: #1a1a1a; margin-bottom: 14px; }
+
+        .tabs { display: flex; }
+        .tab {
+            padding: 10px 18px;
+            background: none;
+            border: none;
+            border-bottom: 3px solid transparent;
+            color: #666;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+            width: auto;
+        }
+        .tab:hover { color: #2196F3; background: #f5f5f5; }
+        .tab.active { color: #2196F3; border-bottom-color: #2196F3; }
+
+        /* ---- Main layout ---- */
+        .container { max-width: 1600px; margin: 0 auto; padding: 24px 30px; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; animation: fadeIn 0.3s; }
+        @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+
+        /* ---- Page layout ---- */
+        .page-layout {
+            display: grid;
+            grid-template-columns: 340px 1fr;
+            gap: 24px;
+            align-items: start;
+        }
+
+        /* ---- Left panel ---- */
+        .left-panel {
+            background: white;
+            border-radius: 10px;
+            padding: 22px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+            position: sticky;
+            top: 24px;
+        }
+
+        .section-title {
+            font-size: 15px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            color: #1a1a1a;
+            border-bottom: 2px solid #f0f0f0;
+            padding-bottom: 8px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 500;
+            color: #333;
+            font-size: 13px;
+        }
+
+        textarea, input[type="text"], select {
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 13px;
+            font-family: inherit;
+            transition: border-color 0.2s;
+        }
+        textarea:focus, input[type="text"]:focus, select:focus {
+            outline: none;
+            border-color: #2196F3;
+            box-shadow: 0 0 0 3px rgba(33,150,243,0.1);
+        }
+        textarea { min-height: 130px; font-family: 'Courier New', monospace; resize: vertical; }
+
+        .input-group { margin-bottom: 16px; }
+
+        /* Query molecule preview */
+        .query-mol-preview {
+            background: #fafafa;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            width: 100%;
+            height: 130px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 8px;
+            overflow: hidden;
+        }
+        .query-mol-preview svg { max-width: 100%; max-height: 100%; }
+
+        /* Run button */
+        .run-btn {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s, transform 0.1s;
+            margin-bottom: 14px;
+        }
+        .run-btn:hover:not(:disabled) { opacity: 0.9; transform: translateY(-1px); }
+        .run-btn:disabled { background: #ccc; cursor: not-allowed; transform: none; }
+
+        /* Status */
+        #statusMessage {
+            padding: 10px 14px;
+            border-radius: 6px;
+            background: #fff3cd;
+            color: #856404;
+            font-size: 13px;
+            font-weight: 500;
+            border-left: 4px solid #ffc107;
+            margin-bottom: 0;
+        }
+        #statusMessage.error { color: #721c24; background: #f8d7da; border-left-color: #f44336; }
+        #statusMessage.success { color: #155724; background: #d4edda; border-left-color: #4caf50; }
+
+        /* ---- Descriptor config cards ---- */
+        .descriptors-header {
+            background: white;
+            border-radius: 10px;
+            padding: 20px 22px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+            margin-bottom: 20px;
+        }
+        .descriptors-header h3 { font-size: 15px; font-weight: 700; color: #1a1a1a; margin-bottom: 14px; }
+
+        .desc-configs {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 14px;
+        }
+
+        .desc-config-card {
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 14px;
+            position: relative;
+            transition: border-color 0.2s;
+        }
+        .desc-config-card:nth-child(1) { border-color: #2196F3; }
+        .desc-config-card:nth-child(2) { border-color: #9c27b0; }
+        .desc-config-card:nth-child(3) { border-color: #e91e63; }
+
+        .desc-badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 700;
+            color: white;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .desc-badge-1 { background: #2196F3; }
+        .desc-badge-2 { background: #9c27b0; }
+        .desc-badge-3 { background: #e91e63; }
+
+        .desc-config-card select, .desc-config-card input {
+            font-size: 12px;
+            padding: 5px 8px;
+        }
+        .desc-config-card label { font-size: 12px; margin-bottom: 4px; }
+        .desc-config-card .input-group { margin-bottom: 10px; }
+
+        .fp-params { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .fp-params.single { grid-template-columns: 1fr; }
+
+        /* ---- Comparison grid ---- */
+        .comparison-area {
+            background: white;
+            border-radius: 10px;
+            padding: 20px 22px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+        }
+
+        /* Query molecule row */
+        .query-row {
+            margin-bottom: 20px;
+            padding: 14px 16px;
+            background: linear-gradient(135deg, #667eea11 0%, #764ba211 100%);
+            border-radius: 8px;
+            border: 1px solid #c5cae9;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        .query-row-mol {
+            width: 120px;
+            height: 90px;
+            flex-shrink: 0;
+            background: white;
+            border-radius: 6px;
+            border: 1px solid #e0e0e0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+        .query-row-mol svg { max-width: 100%; max-height: 100%; }
+        .query-row-info { flex: 1; }
+        .query-row-info h4 { font-size: 13px; font-weight: 700; color: #555; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .query-smiles { font-family: 'Courier New', monospace; font-size: 11px; color: #666; word-break: break-all; }
+
+        /* 3x3 grid: columns = descriptors, rows = rank */
+        .matrix-header {
+            display: grid;
+            grid-template-columns: 60px repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .matrix-col-header {
+            padding: 10px 12px;
+            border-radius: 8px;
+            color: white;
+            font-size: 12px;
+            font-weight: 700;
+            text-align: center;
+            line-height: 1.4;
+        }
+        .mch-1 { background: #2196F3; }
+        .mch-2 { background: #9c27b0; }
+        .mch-3 { background: #e91e63; }
+
+        .matrix-body { display: flex; flex-direction: column; gap: 10px; }
+        .matrix-row {
+            display: grid;
+            grid-template-columns: 60px repeat(3, 1fr);
+            gap: 10px;
+            align-items: stretch;
+        }
+
+        .rank-label {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: 800;
+            color: #bbb;
+        }
+
+        /* Individual result cell */
+        .result-cell {
+            border: 1px solid #e8e8e8;
+            border-radius: 8px;
+            padding: 12px;
+            background: white;
+            transition: box-shadow 0.2s, border-color 0.2s;
+            position: relative;
+        }
+        .result-cell:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .result-cell.col-1:hover { border-color: #2196F3; }
+        .result-cell.col-2:hover { border-color: #9c27b0; }
+        .result-cell.col-3:hover { border-color: #e91e63; }
+
+        .result-cell.col-1 { border-top: 3px solid #2196F3; }
+        .result-cell.col-2 { border-top: 3px solid #9c27b0; }
+        .result-cell.col-3 { border-top: 3px solid #e91e63; }
+
+        .cell-sim {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-size: 16px;
+            font-weight: 800;
+        }
+        .cell-sim.high { color: #4caf50; }
+        .cell-sim.medium { color: #ff9800; }
+        .cell-sim.low { color: #f44336; }
+
+        .cell-mol-viz {
+            width: 100%;
+            height: 110px;
+            background: #fafafa;
+            border-radius: 6px;
+            border: 1px solid #f0f0f0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 8px 0;
+            overflow: hidden;
+        }
+        .cell-mol-viz svg { max-width: 100%; max-height: 100%; }
+
+        .cell-name {
+            font-size: 12px;
+            font-weight: 600;
+            color: #333;
+            text-align: center;
+            margin-bottom: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .cell-smiles {
+            font-family: 'Courier New', monospace;
+            font-size: 10px;
+            color: #999;
+            word-break: break-all;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            line-height: 1.4;
+        }
+
+        /* Empty/loading cell */
+        .cell-placeholder {
+            height: 100%;
+            min-height: 160px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #ccc;
+            font-size: 13px;
+        }
+        .cell-loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 160px;
+            color: #aaa;
+            font-size: 13px;
+        }
+
+        /* Spinner */
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #ddd;
+            border-top-color: #667eea;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-right: 8px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Overlap legend */
+        .overlap-row {
+            margin-top: 18px;
+            padding: 14px 16px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #e0e0e0;
+        }
+        .overlap-row h4 { font-size: 13px; font-weight: 600; color: #555; margin-bottom: 10px; }
+        .overlap-badges { display: flex; flex-wrap: wrap; gap: 8px; }
+        .overlap-badge {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            border: 1px solid;
+        }
+        .overlap-badge.all3 { background: #e8f5e9; color: #2e7d32; border-color: #a5d6a7; }
+        .overlap-badge.two { background: #e3f2fd; color: #1565c0; border-color: #90caf9; }
+        .overlap-badge.unique { background: #fce4ec; color: #880e4f; border-color: #f48fb1; }
+
+        /* Library Tab */
+        .library-content { background: white; border-radius: 10px; padding: 24px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+        .library-info { background: #e3f2fd; padding: 14px; border-radius: 6px; margin-bottom: 16px; border-left: 4px solid #2196F3; }
+        .library-info h3 { font-size: 15px; font-weight: 600; margin-bottom: 6px; color: #1565c0; }
+        .lib-actions { display: flex; gap: 10px; margin-top: 10px; }
+        .lib-btn {
+            padding: 7px 14px;
+            font-size: 13px;
+            background: white;
+            color: #2196F3;
+            border: 1px solid #2196F3;
+            border-radius: 6px;
+            cursor: pointer;
+            width: auto;
+        }
+        .lib-btn:hover { background: #2196F3; color: white; }
+        .lib-btn.danger { color: #f44336; border-color: #f44336; }
+        .lib-btn.danger:hover { background: #f44336; color: white; }
+
+        /* About tab */
+        .about-content { background: white; border-radius: 10px; padding: 30px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+        .about-content h2 { font-size: 20px; font-weight: 700; margin-bottom: 12px; }
+        .about-content p { margin-bottom: 12px; line-height: 1.7; color: #555; }
+        .about-content h3 { font-size: 15px; font-weight: 600; margin: 20px 0 8px; color: #333; }
+
+        @media (max-width: 1100px) {
+            .page-layout { grid-template-columns: 1fr; }
+            .left-panel { position: relative; top: 0; }
+        }
+        @media (max-width: 800px) {
+            .desc-configs { grid-template-columns: 1fr; }
+            .matrix-header, .matrix-row { grid-template-columns: 40px repeat(3, 1fr); }
+        }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div class="header-content">
+        <h1>⚗️ Compound Similarity Search: comparison mode (by Vladimir Chupakhin)</h1>
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('search')">Compare</button>
+            <button class="tab" onclick="switchTab('library')">Library</button>
+            <button class="tab" onclick="switchTab('about')">About</button>
+        </div>
+    </div>
+</div>
+
+<div class="container">
+
+    <!-- ===== COMPARE TAB ===== -->
+    <div id="searchTab" class="tab-content active">
+        <div class="page-layout">
+
+            <!-- Left: Query + Library -->
+            <div class="left-panel">
+                <h3 class="section-title">🔬 Query &amp; Library</h3>
+
+                <div class="input-group">
+                    <label for="querySmiles">Query Compound (SMILES):</label>
+                    <input type="text" id="querySmiles"
+                        value="CCN(C)CCC1=CNC2=C1C=C(C=C2)F"
+                        placeholder="Enter SMILES…"
+                        oninput="previewQueryMol()">
+                    <div class="query-mol-preview" id="queryMolPreview">
+                        <span style="color:#ccc;font-size:12px;">preview</span>
+                    </div>
+                </div>
+
+                <!-- Library status pill -->
+                <div id="libStatus" style="display:flex;align-items:center;gap:8px;margin-bottom:14px;padding:9px 12px;background:#f8f9fa;border-radius:6px;border:1px solid #e0e0e0;font-size:13px;color:#555;">
+                    <span id="libStatusDot" style="width:8px;height:8px;border-radius:50%;background:#ccc;flex-shrink:0;"></span>
+                    <span id="libStatusText">No library loaded — go to the Library tab</span>
+                </div>
+
+                <!-- N results selector -->
+                <div class="input-group" style="margin-bottom:14px;">
+                    <label for="nResults">Top N results per descriptor:</label>
+                    <select id="nResults" style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;">
+                        <option value="1">1</option>
+                        <option value="2">2</option>
+                        <option value="3" selected>3</option>
+                        <option value="4">4</option>
+                        <option value="5">5</option>
+                        <option value="6">6</option>
+                        <option value="7">7</option>
+                        <option value="8">8</option>
+                        <option value="9">9</option>
+                        <option value="10">10</option>
+                    </select>
+                </div>
+
+                <!-- Hidden textarea holds the actual library data -->
+                <textarea id="librarySmiles" style="display:none;"></textarea>
+
+                <button class="run-btn" id="searchButton" onclick="runComparison()">
+                    🔍 Compare All Descriptors
+                </button>
+
+                <div id="statusMessage">Loading RDKit module…</div>
+            </div>
+
+            <!-- Right: Descriptor configs + results -->
+            <div>
+                <!-- Descriptor configs -->
+                <div class="descriptors-header">
+                    <h3>⚙️ Descriptor Settings</h3>
+                    <div class="desc-configs" id="descConfigs">
+                        <!-- Generated by JS -->
+                    </div>
+                </div>
+
+                <!-- Results matrix -->
+                <div class="comparison-area">
+                    <h3 class="section-title">📊 Top-3 Results per Descriptor</h3>
+
+                    <div id="resultsPlaceholder" style="padding:40px;text-align:center;color:#aaa;">
+                        <div style="font-size:40px;margin-bottom:10px;">🧪</div>
+                        <div style="font-size:15px;font-weight:500;">No results yet</div>
+                        <div style="font-size:13px;margin-top:6px;">Configure the three descriptors and click Compare</div>
+                    </div>
+
+                    <div id="resultsArea" style="display:none;">
+                        <!-- Query molecule header row -->
+                        <div class="query-row">
+                            <div class="query-row-mol" id="resultQueryMol"></div>
+                            <div class="query-row-info">
+                                <h4>Query Compound</h4>
+                                <div class="query-smiles" id="resultQuerySmiles"></div>
+                            </div>
+                        </div>
+
+                        <!-- Column headers -->
+                        <div class="matrix-header">
+                            <div></div>
+                            <div class="matrix-col-header mch-1" id="colHeader1">Descriptor 1</div>
+                            <div class="matrix-col-header mch-2" id="colHeader2">Descriptor 2</div>
+                            <div class="matrix-col-header mch-3" id="colHeader3">Descriptor 3</div>
+                        </div>
+
+                        <!-- 3 rows (ranks) -->
+                        <div class="matrix-body" id="matrixBody"></div>
+
+                        <!-- Overlap analysis -->
+                        <div class="overlap-row" id="overlapSection">
+                            <h4>🔍 Hit Overlap Analysis</h4>
+                            <div class="overlap-badges" id="overlapBadges"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== LIBRARY TAB ===== -->
+    <div id="libraryTab" class="tab-content">
+        <div class="library-content">
+            <div class="library-info">
+                <h3>📚 SMILES Library</h3>
+                <p>Tab-separated: SMILES in the first column, optional Name and other metadata in subsequent columns.</p>
+                <p style="font-family:monospace;font-size:12px;background:#f5f5f5;padding:8px;border-radius:4px;margin-top:8px;">
+                    CC(=O)Oc1ccccc1C(=O)O&nbsp;&nbsp;&nbsp;&nbsp;Aspirin&nbsp;&nbsp;&nbsp;&nbsp;CHEMBL25
+                </p>
+                <div class="lib-actions">
+                    <button class="lib-btn" onclick="loadExampleLibrary()">📋 Load Example</button>
+                    <button class="lib-btn danger" onclick="clearLibrary()">🗑️ Clear</button>
+                </div>
+            </div>
+            <div class="input-group">
+                <label>SMILES Library (shared with Compare tab):</label>
+                <textarea id="librarySmiles2" style="min-height:400px;" placeholder="SMILES	Name	Source"></textarea>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== ABOUT TAB ===== -->
+    <div id="aboutTab" class="tab-content">
+        <div class="about-content">
+            <h2>Descriptor Comparison — 3×3 Similarity Search</h2>
+            <p>This tool runs three simultaneous Tanimoto similarity searches using three independently configured molecular fingerprints and displays the top-3 hits for each descriptor in a 3×3 matrix.</p>
+            <h3>How to use</h3>
+            <p>1. Enter a query SMILES in the left panel.<br>
+               2. Paste or load a library of SMILES.<br>
+               3. Configure each of the three descriptor columns (fingerprint type and parameters).<br>
+               4. Click <strong>Compare All Descriptors</strong>.</p>
+            <h3>Fingerprints available</h3>
+            <p><strong>Morgan (ECFP)</strong> — circular fingerprints. Radius 2 = ECFP4.<br>
+               <strong>RDKit Topological</strong> — path-based fingerprints.<br>
+               <strong>MACCS Keys</strong> — 166-bit structural keys (fixed).<br>
+               <strong>Atom Pair</strong> — atom-pair count fingerprints.<br>
+               <strong>Topological Torsion</strong> — 4-atom torsion angle fingerprints.</p>
+            <h3>Overlap analysis</h3>
+            <p>Below the matrix, unique hits, pairwise overlaps, and triple overlaps across the three descriptor rankings are highlighted — showing which compounds rank consistently across different chemical representations.</p>
+            <p style="margin-top:20px;font-size:13px;color:#888;">Built on RDKit.js — by Vladimir Chupakhin</p>
+        </div>
+    </div>
+</div>
+
+<script>
+// ============================================================
+//  State
+// ============================================================
+let RDKitModule = null;
+
+const FP_TYPES = [
+    { value: 'morgan',               label: 'Morgan (ECFP)' },
+    { value: 'rdkit',                label: 'RDKit Topological' },
+    { value: 'maccs',                label: 'MACCS Keys' },
+    { value: 'atompair',             label: 'Atom Pair' },
+    { value: 'topological_torsion',  label: 'Topological Torsion' },
+];
+
+// Default settings for each of the 3 descriptor slots
+const DEFAULTS = [
+    { type: 'morgan',    radius: 2,  nBits: 2048 },
+    { type: 'rdkit',     minPath: 1, maxPath: 7,  nBits: 2048 },
+    { type: 'maccs' },
+];
+
+const COL_COLORS = ['#2196F3', '#9c27b0', '#e91e63'];
+
+// ============================================================
+//  Tab switching
+// ============================================================
+function switchTab(name) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    document.getElementById(name + 'Tab').classList.add('active');
+    const tabs = document.querySelectorAll('.tab');
+    const names = ['search', 'library', 'about'];
+    tabs[names.indexOf(name)].classList.add('active');
+
+    // Sync library textarea
+    if (name === 'library') {
+        document.getElementById('librarySmiles2').value = document.getElementById('librarySmiles').value;
+    }
+}
+
+// ============================================================
+//  Build descriptor config cards
+// ============================================================
+function buildDescriptorCards() {
+    const container = document.getElementById('descConfigs');
+    container.innerHTML = '';
+
+    for (let i = 0; i < 3; i++) {
+        const d = DEFAULTS[i];
+        const card = document.createElement('div');
+        card.className = 'desc-config-card';
+        card.id = `desc${i}`;
+        card.innerHTML = buildCardHTML(i, d);
+        container.appendChild(card);
+        // Set initial visibility
+        updateParamsVisibility(i);
+    }
+}
+
+function buildCardHTML(i, d) {
+    const num = i + 1;
+    const fpOptions = FP_TYPES.map(f =>
+        `<option value="${f.value}" ${d.type === f.value ? 'selected' : ''}>${f.label}</option>`
+    ).join('');
+
+    return `
+        <div class="desc-badge desc-badge-${num}">Descriptor ${num}</div>
+        <div class="input-group">
+            <label>Fingerprint:</label>
+            <select id="fp_${i}" onchange="updateParamsVisibility(${i})">
+                ${fpOptions}
+            </select>
+        </div>
+        <div id="params_morgan_${i}" class="params-block">
+            <div class="fp-params">
+                <div class="input-group">
+                    <label>Radius:</label>
+                    <select id="morgan_radius_${i}">
+                        <option value="1">1</option>
+                        <option value="2" ${(d.radius||2)===2?'selected':''}>2</option>
+                        <option value="3">3</option>
+                        <option value="4">4</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label>nBits:</label>
+                    <select id="morgan_nbits_${i}">
+                        <option value="512">512</option>
+                        <option value="1024">1024</option>
+                        <option value="2048" selected>2048</option>
+                        <option value="4096">4096</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        <div id="params_rdkit_${i}" class="params-block" style="display:none">
+            <div class="fp-params">
+                <div class="input-group">
+                    <label>Min Path:</label>
+                    <select id="rdkit_min_${i}">
+                        <option value="1" selected>1</option>
+                        <option value="2">2</option>
+                        <option value="3">3</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label>Max Path:</label>
+                    <select id="rdkit_max_${i}">
+                        <option value="5">5</option>
+                        <option value="6">6</option>
+                        <option value="7" selected>7</option>
+                        <option value="8">8</option>
+                    </select>
+                </div>
+            </div>
+            <div class="fp-params single">
+                <div class="input-group">
+                    <label>nBits:</label>
+                    <select id="rdkit_nbits_${i}">
+                        <option value="1024">1024</option>
+                        <option value="2048" selected>2048</option>
+                        <option value="4096">4096</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        <div id="params_maccs_${i}" class="params-block" style="display:none">
+            <small style="color:#888;font-size:11px;">Fixed 166-bit structural keys — no parameters.</small>
+        </div>
+        <div id="params_atompair_${i}" class="params-block" style="display:none">
+            <div class="fp-params single">
+                <div class="input-group">
+                    <label>nBits:</label>
+                    <select id="ap_nbits_${i}">
+                        <option value="1024">1024</option>
+                        <option value="2048" selected>2048</option>
+                        <option value="4096">4096</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        <div id="params_topological_torsion_${i}" class="params-block" style="display:none">
+            <div class="fp-params single">
+                <div class="input-group">
+                    <label>nBits:</label>
+                    <select id="tt_nbits_${i}">
+                        <option value="1024">1024</option>
+                        <option value="2048" selected>2048</option>
+                        <option value="4096">4096</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function updateParamsVisibility(i) {
+    const fpType = document.getElementById(`fp_${i}`).value;
+    const types = ['morgan', 'rdkit', 'maccs', 'atompair', 'topological_torsion'];
+    types.forEach(t => {
+        const el = document.getElementById(`params_${t}_${i}`);
+        if (el) el.style.display = t === fpType ? '' : 'none';
+    });
+}
+
+// ============================================================
+//  Fingerprint computation
+// ============================================================
+function computeFP(mol, descIdx) {
+    const fpType = document.getElementById(`fp_${descIdx}`).value;
+    switch (fpType) {
+        case 'morgan': {
+            const radius = parseInt(document.getElementById(`morgan_radius_${descIdx}`).value);
+            const nBits  = parseInt(document.getElementById(`morgan_nbits_${descIdx}`).value);
+            return mol.get_morgan_fp(JSON.stringify({ radius, nBits }));
+        }
+        case 'rdkit': {
+            const minPath = parseInt(document.getElementById(`rdkit_min_${descIdx}`).value);
+            const maxPath = parseInt(document.getElementById(`rdkit_max_${descIdx}`).value);
+            const nBits   = parseInt(document.getElementById(`rdkit_nbits_${descIdx}`).value);
+            return mol.get_rdkit_fp(JSON.stringify({ minPath, maxPath, nBits }));
+        }
+        case 'maccs':
+            return mol.get_maccs_fp();
+        case 'atompair': {
+            const nBits = parseInt(document.getElementById(`ap_nbits_${descIdx}`).value);
+            return mol.get_atom_pair_fp(JSON.stringify({ nBits }));
+        }
+        case 'topological_torsion': {
+            const nBits = parseInt(document.getElementById(`tt_nbits_${descIdx}`).value);
+            return mol.get_topological_torsion_fp(JSON.stringify({ nBits }));
+        }
+        default:
+            throw new Error('Unknown FP type');
+    }
+}
+
+function tanimoto(fp1, fp2) {
+    let shared = 0, union = 0;
+    for (let i = 0; i < fp1.length; i++) {
+        if (fp1[i] === '1' && fp2[i] === '1') shared++;
+        if (fp1[i] === '1' || fp2[i] === '1') union++;
+    }
+    return union > 0 ? shared / union : 0;
+}
+
+function getDescLabel(i) {
+    const fpType = document.getElementById(`fp_${i}`).value;
+    const labels = {
+        morgan: () => {
+            const r = document.getElementById(`morgan_radius_${i}`).value;
+            const n = document.getElementById(`morgan_nbits_${i}`).value;
+            return `Morgan r=${r} n=${n}`;
+        },
+        rdkit: () => {
+            const mn = document.getElementById(`rdkit_min_${i}`).value;
+            const mx = document.getElementById(`rdkit_max_${i}`).value;
+            const n  = document.getElementById(`rdkit_nbits_${i}`).value;
+            return `RDKit [${mn}-${mx}] n=${n}`;
+        },
+        maccs: () => 'MACCS 166-bit',
+        atompair: () => {
+            const n = document.getElementById(`ap_nbits_${i}`).value;
+            return `AtomPair n=${n}`;
+        },
+        topological_torsion: () => {
+            const n = document.getElementById(`tt_nbits_${i}`).value;
+            return `TorsionFP n=${n}`;
+        },
+    };
+    return (labels[fpType] || (() => fpType))();
+}
+
+// ============================================================
+//  Query molecule preview
+// ============================================================
+function previewQueryMol() {
+    if (!RDKitModule) return;
+    const smiles = document.getElementById('querySmiles').value.trim();
+    const container = document.getElementById('queryMolPreview');
+    if (!smiles) { container.innerHTML = '<span style="color:#ccc;font-size:12px;">preview</span>'; return; }
+    try {
+        const mol = RDKitModule.get_mol(smiles);
+        if (mol && mol.is_valid()) {
+            container.innerHTML = mol.get_svg();
+            mol.delete();
+        } else {
+            container.innerHTML = '<span style="color:#f44336;font-size:12px;">Invalid SMILES</span>';
+            if (mol) mol.delete();
+        }
+    } catch(e) {
+        container.innerHTML = '<span style="color:#f44336;font-size:12px;">Error</span>';
+    }
+}
+
+function renderMolToContainer(smiles, container) {
+    if (!smiles || !RDKitModule) { container.innerHTML = '?'; return; }
+    try {
+        const mol = RDKitModule.get_mol(smiles);
+        if (mol && mol.is_valid()) {
+            container.innerHTML = mol.get_svg();
+            mol.delete();
+        } else {
+            container.innerHTML = '<span style="font-size:10px;color:#ccc;">Invalid</span>';
+            if (mol) mol.delete();
+        }
+    } catch(e) { container.innerHTML = '<span style="font-size:10px;color:#ccc;">Error</span>'; }
+}
+
+// ============================================================
+//  Status helper
+// ============================================================
+function setStatus(msg, type = '') {
+    const el = document.getElementById('statusMessage');
+    el.textContent = msg;
+    el.className = type;
+}
+
+// ============================================================
+//  Main comparison
+// ============================================================
+async function runComparison() {
+    if (!RDKitModule) { setStatus('RDKit not loaded yet.', 'error'); return; }
+
+    const querySmiles = document.getElementById('querySmiles').value.trim();
+    if (!querySmiles) { setStatus('Please enter a query SMILES.', 'error'); return; }
+
+    // Parse library (shared between tabs)
+    const libText = document.getElementById('librarySmiles').value;
+    const libraryLines = libText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    if (libraryLines.length === 0) { setStatus('Library is empty.', 'error'); return; }
+
+    const libraryData = libraryLines.map(line => {
+        let parts = line.split('\t').filter(p => p.trim().length > 0);
+        if (parts.length === 1) parts = line.split(/\s+/).filter(p => p.trim().length > 0);
+        return { smiles: parts[0], name: parts[1] || '' };
+    });
+
+    const btn = document.getElementById('searchButton');
+    btn.disabled = true;
+    document.getElementById('resultsPlaceholder').style.display = 'none';
+    document.getElementById('resultsArea').style.display = 'none';
+
+    setStatus(`Processing query…`);
+    await tick();
+
+    // Validate query
+    let queryMol;
+    try {
+        queryMol = RDKitModule.get_mol(querySmiles);
+        if (!queryMol || !queryMol.is_valid()) throw new Error('Invalid query SMILES');
+    } catch(e) {
+        setStatus(`Query error: ${e.message}`, 'error');
+        btn.disabled = false;
+        if (queryMol) queryMol.delete();
+        return;
+    }
+
+    // Compute query FPs for all 3 descriptors
+    let queryFPs = [];
+    for (let d = 0; d < 3; d++) {
+        try {
+            queryFPs.push(computeFP(queryMol, d));
+        } catch(e) {
+            queryFPs.push(null);
+        }
+    }
+    queryMol.delete();
+
+    setStatus(`Comparing ${libraryData.length} compounds across 3 descriptors…`);
+    await tick();
+
+    // For each descriptor, compute similarities
+    const allResults = [[], [], []]; // allResults[descIdx] = sorted array
+    const batchSize = 15;
+
+    for (let i = 0; i < libraryData.length; i += batchSize) {
+        const end = Math.min(i + batchSize, libraryData.length);
+        for (let j = i; j < end; j++) {
+            const entry = libraryData[j];
+            let libMol = null;
+            try {
+                libMol = RDKitModule.get_mol(entry.smiles);
+                if (!libMol || !libMol.is_valid()) { if (libMol) libMol.delete(); continue; }
+
+                for (let d = 0; d < 3; d++) {
+                    if (!queryFPs[d]) continue;
+                    try {
+                        const libFP = computeFP(libMol, d);
+                        const sim = tanimoto(queryFPs[d], libFP);
+                        allResults[d].push({ smiles: entry.smiles, name: entry.name, similarity: sim });
+                    } catch(e) { /* skip this desc for this mol */ }
+                }
+                libMol.delete();
+            } catch(e) { if (libMol) libMol.delete(); }
+        }
+
+        if ((i / batchSize) % 3 === 0) {
+            setStatus(`Processing: ${Math.min(i + batchSize, libraryData.length)} / ${libraryData.length}…`);
+            await tick();
+        }
+    }
+
+    // Sort each and take top N
+    const N = parseInt(document.getElementById('nResults').value);
+    const top3 = allResults.map(res => {
+        res.sort((a, b) => b.similarity - a.similarity);
+        return res.slice(0, N);
+    });
+
+    setStatus(`Done! Rendering results…`);
+    await tick();
+
+    renderResults(querySmiles, top3);
+    btn.disabled = false;
+    setStatus(`Search complete — ${libraryData.length} compounds compared.`, 'success');
+}
+
+async function tick() { return new Promise(r => setTimeout(r, 20)); }
+
+// ============================================================
+//  Render 3×3 matrix
+// ============================================================
+function renderResults(querySmiles, top3) {
+    // Query display
+    const qMolContainer = document.getElementById('resultQueryMol');
+    renderMolToContainer(querySmiles, qMolContainer);
+    document.getElementById('resultQuerySmiles').textContent = querySmiles;
+
+    // Column headers
+    for (let d = 0; d < 3; d++) {
+        document.getElementById(`colHeader${d + 1}`).textContent = getDescLabel(d);
+    }
+
+    // Build matrix rows
+    const N = Math.max(...top3.map(t => t.length), 1);
+    const body = document.getElementById('matrixBody');
+    body.innerHTML = '';
+    for (let rank = 0; rank < N; rank++) {
+        const row = document.createElement('div');
+        row.className = 'matrix-row';
+
+        // Rank label
+        const rankLabel = document.createElement('div');
+        rankLabel.className = 'rank-label';
+        rankLabel.textContent = `#${rank + 1}`;
+        row.appendChild(rankLabel);
+
+        // Three cells
+        for (let d = 0; d < 3; d++) {
+            const cell = document.createElement('div');
+            cell.className = `result-cell col-${d + 1}`;
+
+            const hit = top3[d][rank];
+            if (!hit) {
+                cell.innerHTML = '<div class="cell-placeholder">No result</div>';
+            } else {
+                const simClass = hit.similarity >= 0.7 ? 'high' : hit.similarity >= 0.4 ? 'medium' : 'low';
+                cell.innerHTML = `
+                    <span class="cell-sim ${simClass}">${hit.similarity.toFixed(3)}</span>
+                    <div class="cell-mol-viz" id="cellmol_${d}_${rank}"></div>
+                    <div class="cell-name" title="${hit.name || hit.smiles}">${hit.name || '—'}</div>
+                    <div class="cell-smiles">${hit.smiles}</div>
+                `;
+            }
+            row.appendChild(cell);
+        }
+        body.appendChild(row);
+    }
+
+    // Render molecules in cells (after DOM is updated)
+    for (let d = 0; d < 3; d++) {
+        for (let rank = 0; rank < N; rank++) {
+            const el = document.getElementById(`cellmol_${d}_${rank}`);
+            if (el && top3[d][rank]) {
+                renderMolToContainer(top3[d][rank].smiles, el);
+            }
+        }
+    }
+
+    // Overlap analysis
+    renderOverlap(top3);
+
+    document.getElementById('resultsArea').style.display = 'block';
+}
+
+function renderOverlap(top3) {
+    const sets = top3.map(hits => new Set(hits.map(h => h.smiles)));
+    const badges = [];
+
+    // All 3 overlap
+    const all3 = [...sets[0]].filter(s => sets[1].has(s) && sets[2].has(s));
+    all3.forEach(s => {
+        const name = top3[0].find(h => h.smiles === s)?.name || s.substring(0, 20);
+        badges.push(`<span class="overlap-badge all3">✓ All 3: ${name}</span>`);
+    });
+
+    // Pairwise only
+    const pairs = [[0,1],[0,2],[1,2]];
+    const pairNames = ['D1∩D2','D1∩D3','D2∩D3'];
+    pairs.forEach(([a, b], idx) => {
+        const overlap = [...sets[a]].filter(s => sets[b].has(s) && !all3.includes(s));
+        overlap.forEach(s => {
+            const name = top3[a].find(h => h.smiles === s)?.name || s.substring(0, 20);
+            badges.push(`<span class="overlap-badge two">${pairNames[idx]}: ${name}</span>`);
+        });
+    });
+
+    // Unique to each
+    for (let d = 0; d < 3; d++) {
+        const others = [0,1,2].filter(x => x !== d);
+        const unique = [...sets[d]].filter(s => !others.some(o => sets[o].has(s)));
+        unique.forEach(s => {
+            const name = top3[d].find(h => h.smiles === s)?.name || s.substring(0, 20);
+            badges.push(`<span class="overlap-badge unique">D${d+1} only: ${name}</span>`);
+        });
+    }
+
+    const container = document.getElementById('overlapBadges');
+    if (badges.length === 0) {
+        container.innerHTML = '<span style="color:#aaa;font-size:13px;">No overlaps found in top-3 hits.</span>';
+    } else {
+        container.innerHTML = badges.join('');
+    }
+}
+
+// ============================================================
+//  Library tab helpers
+// ============================================================
+function clearLibrary() {
+    if (confirm('Clear the library?')) {
+        document.getElementById('librarySmiles').value = '';
+        document.getElementById('librarySmiles2').value = '';
+        updateLibStatus();
+    }
+}
+
+function loadExampleLibrary() {
+    const ex = `C[C@H](CC1=CC2=C(C=C1)OCO2)N(C)C\t(R)-MDMA\tInvestigational Hallucinogens
+CC(C)N(C(C)C)CCC1=CNC2=C1C(OC(=O)O)=CC=C2\tLuvesilocin\tInvestigational Hallucinogens
+CC(C)N(C)CCC1=CNC2=CC(OC)=CC=C21\t5-MeO-MiPT\tInvestigational Hallucinogens
+CC(C)N(CCC1=CNC2=C1C=C(C=C2)OC)CC=C\tASR-3001\tInvestigational Hallucinogens
+CC(CC1=CC2=C(C=C1)OCO2)N(C)C\tMidomafetamine\tInvestigational Hallucinogens
+CC(CC1=CC2=C(C=C1)OCO2)N(CC)C\tMBDB\tInvestigational Hallucinogens
+CCCCN(C)CCC1=CNC2=C1C=C(OC)C=C2\tMebufotenin\tInvestigational Hallucinogens
+CCN(C)CCC1=CNC2=C1C=C(C=C2)F\tBretisilocin\tInvestigational Hallucinogens
+CCN(CC)CCC1=CNC2=CC(=C(C=C21)O)OC\tBufotenin\tInvestigational Hallucinogens
+CN(C)CCC1=CNC2=CC=CC=C21\tDimethyltryptamine\tInvestigational Hallucinogens
+CN1C=C(C2=CC(=C(C=C21)O)OC)CCO\tPsilocin\tInvestigational Hallucinogens
+CN1C=C(C2=CC(=C(C=C21)OP(=O)(O)O)O)CCO\tPsilocybin\tInvestigational Hallucinogens
+CN(C)[C@H]1CCCCC1(C2=CC=CC(Cl)=C2)=O\tArketamine\tInvestigational Hallucinogens
+CN(C)C1(CCCCC1=O)C2=CC=CC(Cl)=C2\tKetamine\tInvestigational Hallucinogens
+COC1=CC2=C(C=C1)N3CCCCC4(C3C2)CC5=CC=CC=C54\tIbogaine\tInvestigational Hallucinogens
+COC1=CC2=C(C=C1O)N3CCCCC4(C3C2)CC5=CC=CC=C54\tNoribogaine\tInvestigational Hallucinogens
+NCCc1cc(OC)c(cc1OC)I\t2C-I\tShulgin
+NCCc1cc(OC)c(cc1OC)Br\t2C-B\tShulgin
+NCCc1cc(OC)c(cc1OC)SC\t2C-T\tShulgin
+CCC(Cc1cc(OC)c(c(c1)OC)OC)N\tAEM\tShulgin
+CN1C=NC2=C1C(=O)N(C(=O)N2C)C\tCaffeine\tStimulant
+CC(=O)Oc1ccccc1C(=O)O\tAspirin\tNSAID
+CC(=O)NC1=CC=C(O)C=C1\tParacetamol\tAnalgesic
+CC(C)Cc1ccc(cc1)C(C)C(O)=O\tIbuprofen\tNSAID
+CN(C)CCOC(c1ccccc1)c2ccccc2\tDiphenhydramine\tAntihistamine`;
+    document.getElementById('librarySmiles').value = ex;
+    document.getElementById('librarySmiles2').value = ex;
+    updateLibStatus();
+}
+
+// Sync library textarea when typing in library tab
+document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('librarySmiles2').addEventListener('input', function() {
+        document.getElementById('librarySmiles').value = this.value;
+        updateLibStatus();
+    });
+});
+
+function updateLibStatus() {
+    const text = document.getElementById('librarySmiles').value.trim();
+    const lines = text.split('\n').filter(l => l.trim().length > 0);
+    const dot = document.getElementById('libStatusDot');
+    const label = document.getElementById('libStatusText');
+    if (lines.length === 0) {
+        dot.style.background = '#ccc';
+        label.textContent = 'No library loaded — go to the Library tab';
+    } else {
+        dot.style.background = '#4caf50';
+        label.textContent = `${lines.length} compound${lines.length !== 1 ? 's' : ''} loaded`;
+    }
+}
+
+// ============================================================
+//  Init
+// ============================================================
+buildDescriptorCards();
+
+window.initRDKitModule().then(rdkit => {
+    RDKitModule = rdkit;
+    setStatus(`RDKit v${rdkit.version()} loaded. Ready to compare.`, 'success');
+    document.getElementById('searchButton').disabled = false;
+    previewQueryMol();
+
+    // Load example library on first load
+    loadExampleLibrary();
+    updateLibStatus();
+}).catch(err => {
+    console.error(err);
+    setStatus('Error loading RDKit.js. Check console.', 'error');
+});
+
+document.getElementById('searchButton').disabled = true;
+</script>
+</body>
+</html>
