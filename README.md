@@ -1,4 +1,4 @@
-# Code for [HDPharm SubStack Blog](https://hdpharm.substack.com/)
+# Code for [HD Pharmacology & AI](https://www.linkedin.com/newsletters/hd-pharmacology-ai-7415218233856958465/) and [HDPharm SubStack Blog](https://hdpharm.substack.com/).
 
 ## Overview
 
